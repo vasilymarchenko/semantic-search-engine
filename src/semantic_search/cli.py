@@ -1,8 +1,16 @@
 """
 Command-line interface for testing chunking strategies.
+
+The command 'semantic-chunker' is registered in pyproject.toml:
+    [project.scripts]
+    semantic-chunker = "semantic_search.cli:main"
+
+This creates an executable that calls the main() function below.
+Multiple CLI commands can be defined by adding more entries to [project.scripts].
 """
 
 import argparse
+import shutil
 import sys
 from pathlib import Path
 
@@ -19,13 +27,17 @@ Examples:
   semantic-chunker                                    # Use default document
   semantic-chunker path\\to\\document.md              # Chunk specific file
   semantic-chunker document.md --max-tokens 500       # Custom chunk size
+  semantic-chunker --save -v                          # Save chunks to files
         """,
     )
+
+    # Default path: project_root/docs/semantic-search-engine-plan.md
+    default_doc = Path(__file__).parent.parent.parent / "docs" / "semantic-search-engine-plan.md"
 
     parser.add_argument(
         "document",
         nargs="?",
-        default=r"c:\Work\Personal\semantic-search-engine\docs\semantic-search-engine-plan.md",
+        default=str(default_doc),
         help="Path to markdown document (default: semantic-search-engine-plan.md)",
     )
     parser.add_argument(
@@ -57,6 +69,12 @@ Examples:
         "-v",
         action="store_true",
         help="Show detailed chunk information",
+    )
+    parser.add_argument(
+        "--save",
+        "-s",
+        action="store_true",
+        help="Save chunks to output folder (chunks_output/)",
     )
 
     args = parser.parse_args()
@@ -98,6 +116,22 @@ Examples:
     print("=" * 80)
 
     chunks = chunker.chunk_document(markdown_text)
+
+    # Save chunks to files if requested
+    if args.save:
+        output_dir = Path("chunks_output")
+        
+        # Clean output directory
+        if output_dir.exists():
+            shutil.rmtree(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Save each chunk
+        for i, chunk in enumerate(chunks, start=1):
+            chunk_file = output_dir / f"{i}.md"
+            chunk_file.write_text(chunk.text, encoding="utf-8")
+        
+        print(f"\n💾 Saved {len(chunks)} chunks to {output_dir.absolute()}\\")
 
     # Summary statistics
     total_tokens = sum(c.token_count for c in chunks)

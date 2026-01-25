@@ -4,23 +4,15 @@ A Python library for intelligent document chunking with support for markdown, co
 
 ## 🎯 Project Overview
 
-This project implements **content-aware chunking strategies** that intelligently split documents while preserving semantic boundaries. Unlike naive fixed-size chunking, this approach:
+This project implements **content-aware chunking strategies** that intelligently split documents while preserving semantic boundaries. Unlike naive fixed-size chunking, this approach respects document structure (headers, code blocks, tables) and maintains semantic coherence within chunks to optimize for vector embedding and search quality.
 
-- ✅ Respects document structure (headers, code blocks, tables)
-- ✅ Maintains semantic coherence within chunks
-- ✅ Provides hierarchical context for each chunk
-- ✅ Optimizes for vector embedding and search quality
-
-## 📋 Features
-
-- **Markdown Chunking**: Header-based splitting with code block and table preservation
-- **Token Estimation**: Approximate token counting for chunk size control
-- **Hierarchical Context**: Track section paths for better search results
-- **Two-Tier Strategy**:
-  - Documents ≤ 600 tokens: Single chunk (document-level embedding)
-  - Documents > 600 tokens: Smart chunking with 50-token overlap
-- **Type-Safe Models**: Pydantic models for robust data validation
-- **CLI Tool**: Test chunking strategies from command line
+**Key Features:**
+- 📝 Markdown chunking with header-based splitting
+- 🔒 Code block and table preservation (never split)
+- 🏗️ Hierarchical context tracking
+- ⚙️ Configurable chunk size and overlap
+- 🧪 Type-safe Pydantic models
+- 💻 CLI tool for testing and validation
 
 ## 🚀 Quick Start
 
@@ -41,77 +33,58 @@ cd c:\Work\Personal\semantic-search-engine
 .venv\Scripts\activate
 ```
 
-3. **Install the package in editable mode**:
+3. **Install the package**:
 ```cmd
+# Development mode (recommended)
+pip install -e .[dev]
+
+# Or production mode (without dev tools)
 pip install -e .
 ```
 
-This will install the package and all dependencies defined in `pyproject.toml`.
+This installs the package and all dependencies from `pyproject.toml`.
 
-## 📦 Project Structure
+## 📚 Documentation
 
-```
-semantic-search-engine/
-├── src/
-│   └── semantic_search/          # Main package
-│       ├── __init__.py           # Package exports
-│       ├── models.py             # Pydantic data models
-│       ├── chunking/             # Chunking strategies
-│       │   ├── __init__.py
-│       │   ├── base.py           # Abstract base class
-│       │   └── markdown.py       # Markdown chunker
-│       └── cli.py                # Command-line interface
-├── tests/                        # Unit tests
-│   ├── __init__.py
-│   ├── conftest.py              # Pytest fixtures
-│   ├── test_models.py           # Model tests
-│   └── test_chunking.py         # Chunking strategy tests
-├── docs/                         # Documentation
-│   └── semantic-search-engine-plan.md
-├── embedding_pipeline_test.py    # Original prototype (reference)
-├── pyproject.toml               # Project configuration
-├── requirements.txt             # Core dependencies
-├── requirements-dev.txt         # Development dependencies
-└── README.md                    # This file
-```
+- **[Chunking Strategy Guide](docs/chunking-guide.md)** - Comprehensive guide to content-aware chunking, architecture, usage examples, and best practices
+- **[Project Plan](docs/semantic-search-engine-plan.md)** - Full system architecture and roadmap for the semantic search engine
 
 ## 🧪 Testing
 
-### Run all tests:
+Run the test suite to validate functionality:
+
 ```cmd
+# Run all tests
 pytest
-```
 
-### Run with coverage:
-```cmd
+# Run with coverage report
 pytest --cov=semantic_search --cov-report=html
-```
 
-### Run specific test file:
-```cmd
+# Run specific test file
 pytest tests\test_chunking.py -v
-```
 
-### Run tests in verbose mode:
-```cmd
+# Verbose mode
 pytest -vv
 ```
 
 ## 🔧 Usage
 
-### CLI Tool
+### Quick Start
 
-Test the chunking strategy on a markdown document:
+Test the chunking strategy using the CLI:
 
 ```cmd
-# Use default document (plan.md)
+# Use default document
 semantic-chunker
 
-# Specify a custom document
+# Process custom document
 semantic-chunker path\to\document.md
 
-# Adjust chunking parameters
-semantic-chunker document.md --max-tokens 500 --overlap 60 --verbose
+# Save chunks to files for inspection
+semantic-chunker --save
+
+# Customize parameters
+semantic-chunker document.md --max-tokens 500 --overlap 100 --verbose
 ```
 
 ### Python API
@@ -119,116 +92,112 @@ semantic-chunker document.md --max-tokens 500 --overlap 60 --verbose
 ```python
 from semantic_search import MarkdownChunker
 
-# Initialize chunker
+# Create chunker with custom settings
 chunker = MarkdownChunker(
-    token_threshold=600,      # Documents over this size get chunked
-    max_chunk_tokens=400,     # Target chunk size
-    overlap_tokens=50,        # Overlap for context
-    min_chunk_tokens=100      # Minimum viable chunk
+    token_threshold=600,
+    max_chunk_tokens=400,
+    overlap_tokens=50
 )
 
 # Chunk a document
-markdown_text = "# My Document\n\nContent here..."
 chunks = chunker.chunk_document(markdown_text)
 
-# Inspect results
-for i, chunk in enumerate(chunks):
-    print(f"Chunk {i}:")
-    print(f"  Tokens: {chunk.token_count}")
-    print(f"  Section: {' > '.join(chunk.section_path)}")
-    print(f"  Types: {[ct.value for ct in chunk.content_types]}")
-    print(f"  Text preview: {chunk.text[:100]}...")
+# Process results
+for chunk in chunks:
+    print(f"Section: {' > '.join(chunk.section_path)}")
+    print(f"Tokens: {chunk.token_count}")
+    print(f"Text: {chunk.text[:100]}...\n")
 ```
 
-## 📐 Architecture
-
-### Data Models (Pydantic)
-
-- **`ContentType`**: Enum for content block types (header, code, table, list, paragraph, ASCII art)
-- **`ContentBlock`**: Intermediate representation during parsing
-- **`Chunk`**: Final output with text, offsets, tokens, and metadata
-
-### Chunking Strategy
-
-1. **Parse**: Break document into logical content blocks
-2. **Group**: Combine blocks into chunks respecting boundaries
-3. **Overlap**: Add context overlap between adjacent chunks
-4. **Metadata**: Track section paths and content types
-
-### Key Design Principles
-
-- **No text duplication**: Store offsets, not duplicated text
-- **Content-aware**: Never split mid-code-block or mid-table
-- **Hierarchical context**: Maintain section paths for search relevance
-- **Extensible**: Easy to add new chunking strategies (code, PDF, etc.)
+**For detailed usage examples, configuration options, and best practices, see the [Chunking Strategy Guide](docs/chunking-guide.md).**
 
 ## 🛠️ Development
 
+### Managing Dependencies
+
+This project uses `pyproject.toml` for dependency management:
+
+```toml
+# Add production dependency
+dependencies = [
+    "pydantic>=2.0.0",
+    "new-package>=1.0.0",
+]
+
+# Add development dependency
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "new-dev-tool>=1.0.0",
+]
+```
+
+Then reinstall:
+```cmd
+pip install -e .[dev]
+```
+
 ### Code Quality
 
+Format and lint your code:
+
 ```cmd
-# Format code
+# Format with Black
 black src\ tests\
 
-# Lint code
+# Lint with Ruff
 ruff check src\ tests\
 ```
 
-### Adding a New Chunking Strategy
+### Project Structure
 
-1. Create new file in `src\semantic_search\chunking\`
-2. Inherit from `ChunkingStrategy` base class
-3. Implement `chunk_document(text: str) -> list[Chunk]`
-4. Add tests in `tests\test_chunking.py`
-5. Export from `src\semantic_search\chunking\__init__.py`
-
-Example:
-
-```python
-from semantic_search.chunking.base import ChunkingStrategy
-from semantic_search.models import Chunk
-
-class CodeChunker(ChunkingStrategy):
-    """AST-based chunking for source code."""
-    
-    def chunk_document(self, text: str) -> list[Chunk]:
-        # Your implementation here
-        pass
+```
+semantic-search-engine/
+├── src/semantic_search/       # Main package
+│   ├── chunking/              # Chunking strategies
+│   ├── models.py              # Data models
+│   └── cli.py                 # CLI tool
+├── tests/                     # Test suite
+├── docs/                      # Documentation
+├── pyproject.toml             # Project config & dependencies
+└── README.md                  # This file
 ```
 
-## 📊 Performance Characteristics
+### Extending the Project
 
-- **Small documents** (<600 tokens): Single chunk, ~1ms processing
-- **Large documents** (>600 tokens): ~10-50ms depending on complexity
-- **Memory**: Minimal overhead, processes in single pass
-- **Token estimation**: ~4 chars/token (rough approximation)
+See the [Chunking Strategy Guide](docs/chunking-guide.md) for:
+- Adding new content types
+- Creating custom chunking strategies
+- Best practices and troubleshooting
 
-## 🔮 Future Enhancements
+## 📊 Status & Roadmap
 
-- [ ] Code chunking (AST-based for Python, C#, JavaScript)
-- [ ] Email thread-aware chunking
-- [ ] PDF section-based chunking
-- [ ] Smarter token counting (use tiktoken library)
-- [ ] Async/await support for large documents
-- [ ] Chunk quality metrics and validation
+**Current Phase:** Phase 1 - Foundation (Content-Aware Chunking) ✅
 
-## 📚 Related Documentation
+**Completed:**
+- ✅ Markdown chunking with structure preservation
+- ✅ Code block and table handling
+- ✅ Hierarchical context tracking
+- ✅ CLI tool with file export
+- ✅ Comprehensive test coverage
 
-- [Project Plan](docs\semantic-search-engine-plan.md) - Comprehensive project documentation
-- [Original Prototype](embedding_pipeline_test.py) - Initial proof-of-concept
+**Next Steps:**
+- [ ] Additional chunking strategies (Code, PDF, Email)
+- [ ] Embedding integration (OpenAI)
+- [ ] Vector store implementation (Cosmos DB)
+- [ ] Search API (.NET)
+
+See the [Project Plan](docs/semantic-search-engine-plan.md) for the complete roadmap.
 
 ## 🤝 Contributing
 
-This is a personal project, but suggestions are welcome! Please ensure:
-
-- All tests pass (`pytest`)
+This is a personal project, but suggestions are welcome! Please ensure:- All tests pass (`pytest`)
 - Code is formatted (`black`)
 - Type hints are used
-- New features include tests
 
 ## 📝 License
 
-MIT License
+MIT License - see [LICENSE](LICENSE)
 
 ## 👤 Author
 
@@ -236,5 +205,4 @@ MIT License
 
 ---
 
-**Status**: Phase 1 - Foundation (Content-Aware Chunking) ✅  
-**Last Updated**: January 2026
+*Last Updated: January 2026*
