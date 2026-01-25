@@ -1,18 +1,25 @@
-# Semantic Search Engine - Content-Aware Chunking
+# Semantic Search Engine - Ingestion Pipeline
 
-A Python library for intelligent document chunking with support for markdown, code, and other content types. This is the foundation for building a semantic search engine that indexes content from multiple sources.
+A Python library for intelligent document ingestion with content-aware chunking. This is the foundation for building a semantic search engine that indexes content from multiple sources (web pages, markdown files, and more).
 
 ## 🎯 Project Overview
 
-This project implements **content-aware chunking strategies** that intelligently split documents while preserving semantic boundaries. Unlike naive fixed-size chunking, this approach respects document structure (headers, code blocks, tables) and maintains semantic coherence within chunks to optimize for vector embedding and search quality.
+This project implements a complete **ingestion pipeline** that transforms documents from various sources into search-optimized chunks:
+
+1. **Load**: Fetch content from URLs or local files
+2. **Process**: Convert HTML to clean markdown and extract metadata
+3. **Chunk**: Intelligently split documents while preserving semantic boundaries
+4. **Save**: Output normalized markdown and chunks ready for embedding
 
 **Key Features:**
-- 📝 Markdown chunking with header-based splitting
-- 🔒 Code block and table preservation (never split)
-- 🏗️ Hierarchical context tracking
-- ⚙️ Configurable chunk size and overlap
-- 🧪 Type-safe Pydantic models
-- 💻 CLI tool for testing and validation
+- 🌐 **URL fetching** with async HTTP support
+- 🔄 **HTML to Markdown** conversion (removes ads, navigation, footers)
+- 📝 **Markdown enrichment** (extract title, stats, metadata)
+- ✂️ **Content-aware chunking** (respects headers, code blocks, tables)
+- 🏗️ **Hierarchical context tracking**
+- ⚙️ **Configurable** chunk size and overlap
+- 🧪 **Type-safe** Pydantic models
+- 💻 **Unified CLI** for the complete pipeline
 
 ## 🚀 Quick Start
 
@@ -46,8 +53,9 @@ This installs the package and all dependencies from `pyproject.toml`.
 
 ## 📚 Documentation
 
-- **[Chunking Strategy Guide](docs/chunking-guide.md)** - Comprehensive guide to content-aware chunking, architecture, usage examples, and best practices
-- **[Project Plan](docs/semantic-search-engine-plan.md)** - Full system architecture and roadmap for the semantic search engine
+- **[Chunking Strategy Guide](docs/chunking-guide.md)** - Comprehensive guide to content-aware chunking
+- **[Document Processor](docs/processor-implementation-summary.md)** - Details on HTML/markdown processing
+- **[Project Plan](docs/semantic-search-engine-plan.md)** - Full system architecture and roadmap
 
 ## 🧪 Testing
 
@@ -68,29 +76,74 @@ pytest -vv
 ```
 
 ## 🔧 Usage
+Complete Ingestion Pipeline
 
-### Quick Start
+Process documents from various sources using the unified CLI:
 
-Test the chunking strategy using the CLI:
+```bash
+# Fetch and process a web page
+ingestion-cli https://example.com/article
 
-```cmd
-# Use default document
-semantic-chunker
+# Process local HTML file
+ingestion-cli document.html
 
-# Process custom document
-semantic-chunker path\to\document.md
+# Process markdown file (with enrichment)
+ingestion-cli document.md
 
-# Save chunks to files for inspection
-semantic-chunker --save
+# Customize output and chunking
+ingestion-cli https://example.com -o my_output --max-tokens 600
 
-# Customize parameters
-semantic-chunker document.md --max-tokens 500 --overlap 100 --verbose
+# Verbose mode with detailed diagnostics
+ingestion-cli document.html --verbose
 ```
+
+**What it does:**
+1. ✅ **Loads** content (fetches URL or reads file)
+2. ✅ **Processes** to normalized markdown:
+   - HTML → Clean markdown (removes nav/ads/footers)
+   - Markdown → Enrichment (extracts title, stats)
+3. ✅ **Chunks** the markdown intelligently
+4. ✅ **Saves** to output directory:
+   - `document.md` - Normalized markdown
+   - `chunk_1.md`, `chunk_2.md`, ... - Individual chunks
+   - `metadata.json` - Statistics and metadata
 
 ### Python API
 
+#### Document Processing
+
 ```python
-from semantic_search import MarkdownChunker
+from semantic_search.processors import RawDocument, WebPageProcessor
+
+# Process HTML to markdown
+raw_doc = RawDocument(
+    content=html_string,
+    source_type="web",
+    url="https://example.com/article"
+)
+
+processor = WebPageProcessor(include_enrichment=True)
+document = processor.process(raw_doc)
+
+print(document.title)        # Extracted title
+print(document.content)      # Clean markdown
+print(document.metadata)     # Author, description, etc.
+print(document.statistics)   # Word count, reading time, etc.
+```
+
+#### URL Fetching
+
+```python
+from semantic_search.utils import fetch_url
+
+# Async URL fetching
+raw_doc = await fetch_url("https://example.com/article")
+```
+
+#### Chunking
+
+```python
+from semantic_search.chunking import MarkdownChunker
 
 # Create chunker with custom settings
 chunker = MarkdownChunker(
@@ -109,8 +162,11 @@ for chunk in chunks:
     print(f"Text: {chunk.text[:100]}...\n")
 ```
 
-**For detailed usage examples, configuration options, and best practices, see the [Chunking Strategy Guide](docs/chunking-guide.md).**
-
+**For detailed usage examples and best practices, see the [documentation](docs/
+**For deprocessors/            # Document processors (HTML→MD)
+│   ├── utils/                 # URL fetching utilities
+│   ├── models.py              # Data models
+│   └── ingestion_cli.py       # Unified
 ## 🛠️ Development
 
 ### Managing Dependencies
@@ -149,20 +205,6 @@ black src\ tests\
 ruff check src\ tests\
 ```
 
-### Project Structure
-
-```
-semantic-search-engine/
-├── src/semantic_search/       # Main package
-│   ├── chunking/              # Chunking strategies
-│   ├── models.py              # Data models
-│   └── cli.py                 # CLI tool
-├── tests/                     # Test suite
-├── docs/                      # Documentation
-├── pyproject.toml             # Project config & dependencies
-└── README.md                  # This file
-```
-
 ### Extending the Project
 
 See the [Chunking Strategy Guide](docs/chunking-guide.md) for:
@@ -170,19 +212,26 @@ See the [Chunking Strategy Guide](docs/chunking-guide.md) for:
 - Creating custom chunking strategies
 - Best practices and troubleshooting
 
-## 📊 Status & Roadmap
-
-**Current Phase:** Phase 1 - Foundation (Content-Aware Chunking) ✅
+## 📊 Status & Roadmap✅ | Phase 2 - Document Processing ✅
 
 **Completed:**
-- ✅ Markdown chunking with structure preservation
-- ✅ Code block and table handling
+- ✅ Content-aware markdown chunking
+- ✅ Code block and table preservation
 - ✅ Hierarchical context tracking
-- ✅ CLI tool with file export
+- ✅ URL fetching (async with aiohttp)
+- ✅ HTML to Markdown conversion (with Readability)
+- ✅ Markdown enrichment (title, stats, metadata)
+- ✅ Unified ingestion CLI
 - ✅ Comprehensive test coverage
 
+**In Progress:**
+- 🔄 Email processor (Gmail integration)
+- 🔄 PDF processor (text extraction)
+
 **Next Steps:**
-- [ ] Additional chunking strategies (Code, PDF, Email)
+- [ ] Embedding integration (OpenAI)
+- [ ] Vector store implementation (Cosmos DB)
+- [ ] Additional source connectors (Telegram, GitHubPDF, Email)
 - [ ] Embedding integration (OpenAI)
 - [ ] Vector store implementation (Cosmos DB)
 - [ ] Search API (.NET)

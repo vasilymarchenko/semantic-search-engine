@@ -54,4 +54,7 @@ Thumbs.db
 
 # Project specific
 *.log
-chunks_output/
+*_output/
+test_*.html
+test_*.md
+ingestion_output/
