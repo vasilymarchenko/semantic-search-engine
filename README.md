@@ -162,11 +162,19 @@ for chunk in chunks:
     print(f"Text: {chunk.text[:100]}...\n")
 ```
 
-**For detailed usage examples and best practices, see the [documentation](docs/
-**For deprocessors/            # Document processors (HTML→MD)
-│   ├── utils/                 # URL fetching utilities
-│   ├── models.py              # Data models
-│   └── ingestion_cli.py       # Unified
+**For detailed usage examples and best practices, see [docs/](docs/).**
+
+Key modules:
+
+```text
+src/semantic_search/
+    cli.py                 # Typer-based CLI (ingestion-cli)
+    pipeline/ingestion.py   # UI-agnostic ingestion service
+    processors/             # Document processors (HTML→MD)
+    chunking/               # Markdown chunking
+    utils/                  # URL fetching utilities
+    models.py               # Data models
+```
 ## 🛠️ Development
 
 ### Managing Dependencies
