@@ -1,265 +1,208 @@
-# Semantic Search Engine - Ingestion Pipeline
+# Second Brain — Personal Knowledge Engine
 
-A Python library for intelligent document ingestion with content-aware chunking. This is the foundation for building a semantic search engine that indexes content from multiple sources (web pages, markdown files, and more).
-
-## 🎯 Project Overview
-
-This project implements a complete **ingestion pipeline** that transforms documents from various sources into search-optimized chunks:
-
-1. **Load**: Fetch content from URLs or local files
-2. **Process**: Convert HTML to clean markdown and extract metadata
-3. **Chunk**: Intelligently split documents while preserving semantic boundaries
-4. **Save**: Output normalized markdown and chunks ready for embedding
-
-**Key Features:**
-- 🌐 **URL fetching** with async HTTP support
-- 🔄 **HTML to Markdown** conversion (removes ads, navigation, footers)
-- 📝 **Markdown enrichment** (extract title, stats, metadata)
-- ✂️ **Content-aware chunking** (respects headers, code blocks, tables)
-- 🏗️ **Hierarchical context tracking**
-- ⚙️ **Configurable** chunk size and overlap
-- 🧪 **Type-safe** Pydantic models
-- 💻 **Unified CLI** for the complete pipeline
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Python 3.11 or higher (3.13 recommended)
-- pip (Python package manager)
-
-### Installation
-
-1. **Navigate to project directory**:
-```cmd
-cd c:\Work\Personal\semantic-search-engine
-```
-
-2. **Activate virtual environment**:
-```cmd
-.venv\Scripts\activate
-```
-
-3. **Install the package**:
-```cmd
-# Development mode (recommended)
-pip install -e .[dev]
-
-# Or production mode (without dev tools)
-pip install -e .
-```
-
-This installs the package and all dependencies from `pyproject.toml`.
-
-## 📚 Documentation
-
-- **[Chunking Strategy Guide](docs/chunking-guide.md)** - Comprehensive guide to content-aware chunking
-- **[Document Processor](docs/processor-implementation-summary.md)** - Details on HTML/markdown processing
-- **[Project Plan](docs/semantic-search-engine-plan.md)** - Full system architecture and roadmap
-
-## 🧪 Testing
-
-Run the test suite to validate functionality:
-
-```cmd
-# Run all tests
-pytest
-
-# Run with coverage report
-pytest --cov=semantic_search --cov-report=html
-
-# Run specific test file
-pytest tests\test_chunking.py -v
-
-# Verbose mode
-pytest -vv
-```
-
-## 🔧 Usage
-Complete Ingestion Pipeline
-
-Process documents from various sources using the unified CLI:
-
-```bash
-# Fetch and process a web page
-ingestion-cli https://example.com/article
-
-# Process local HTML file
-ingestion-cli document.html
-
-# Process markdown file (with enrichment)
-ingestion-cli document.md
-
-# Customize output and chunking
-ingestion-cli https://example.com -o my_output --max-tokens 600
-
-# Verbose mode with detailed diagnostics
-ingestion-cli document.html --verbose
-```
-
-**What it does:**
-1. ✅ **Loads** content (fetches URL or reads file)
-2. ✅ **Processes** to normalized markdown:
-   - HTML → Clean markdown (removes nav/ads/footers)
-   - Markdown → Enrichment (extracts title, stats)
-3. ✅ **Chunks** the markdown intelligently
-4. ✅ **Saves** to output directory:
-   - `document.md` - Normalized markdown
-   - `chunk_1.md`, `chunk_2.md`, ... - Individual chunks
-   - `metadata.json` - Statistics and metadata
-
-### Python API
-
-#### Document Processing
-
-```python
-from semantic_search.processors import RawDocument, WebPageProcessor
-
-# Process HTML to markdown
-raw_doc = RawDocument(
-    content=html_string,
-    source_type="web",
-    url="https://example.com/article"
-)
-
-processor = WebPageProcessor(include_enrichment=True)
-document = processor.process(raw_doc)
-
-print(document.title)        # Extracted title
-print(document.content)      # Clean markdown
-print(document.metadata)     # Author, description, etc.
-print(document.statistics)   # Word count, reading time, etc.
-```
-
-#### URL Fetching
-
-```python
-from semantic_search.utils import fetch_url
-
-# Async URL fetching
-raw_doc = await fetch_url("https://example.com/article")
-```
-
-#### Chunking
-
-```python
-from semantic_search.chunking import MarkdownChunker
-
-# Create chunker with custom settings
-chunker = MarkdownChunker(
-    token_threshold=600,
-    max_chunk_tokens=400,
-    overlap_tokens=50
-)
-
-# Chunk a document
-chunks = chunker.chunk_document(markdown_text)
-
-# Process results
-for chunk in chunks:
-    print(f"Section: {' > '.join(chunk.section_path)}")
-    print(f"Tokens: {chunk.token_count}")
-    print(f"Text: {chunk.text[:100]}...\n")
-```
-
-**For detailed usage examples and best practices, see [docs/](docs/).**
-
-Key modules:
-
-```text
-src/semantic_search/
-    cli.py                 # Typer-based CLI (ingestion-cli)
-    pipeline/ingestion.py   # UI-agnostic ingestion service
-    processors/             # Document processors (HTML→MD)
-    chunking/               # Markdown chunking
-    utils/                  # URL fetching utilities
-    models.py               # Data models
-```
-## 🛠️ Development
-
-### Managing Dependencies
-
-This project uses `pyproject.toml` for dependency management:
-
-```toml
-# Add production dependency
-dependencies = [
-    "pydantic>=2.0.0",
-    "new-package>=1.0.0",
-]
-
-# Add development dependency
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.4.0",
-    "new-dev-tool>=1.0.0",
-]
-```
-
-Then reinstall:
-```cmd
-pip install -e .[dev]
-```
-
-### Code Quality
-
-Format and lint your code:
-
-```cmd
-# Format with Black
-black src\ tests\
-
-# Lint with Ruff
-ruff check src\ tests\
-```
-
-### Extending the Project
-
-See the [Chunking Strategy Guide](docs/chunking-guide.md) for:
-- Adding new content types
-- Creating custom chunking strategies
-- Best practices and troubleshooting
-
-## 📊 Status & Roadmap✅ | Phase 2 - Document Processing ✅
-
-**Completed:**
-- ✅ Content-aware markdown chunking
-- ✅ Code block and table preservation
-- ✅ Hierarchical context tracking
-- ✅ URL fetching (async with aiohttp)
-- ✅ HTML to Markdown conversion (with Readability)
-- ✅ Markdown enrichment (title, stats, metadata)
-- ✅ Unified ingestion CLI
-- ✅ Comprehensive test coverage
-
-**In Progress:**
-- 🔄 Email processor (Gmail integration)
-- 🔄 PDF processor (text extraction)
-
-**Next Steps:**
-- [ ] Embedding integration (OpenAI)
-- [ ] Vector store implementation (Cosmos DB)
-- [ ] Additional source connectors (Telegram, GitHubPDF, Email)
-- [ ] Embedding integration (OpenAI)
-- [ ] Vector store implementation (Cosmos DB)
-- [ ] Search API (.NET)
-
-See the [Project Plan](docs/semantic-search-engine-plan.md) for the complete roadmap.
-
-## 🤝 Contributing
-
-This is a personal project, but suggestions are welcome! Please ensure:- All tests pass (`pytest`)
-- Code is formatted (`black`)
-- Type hints are used
-
-## 📝 License
-
-MIT License - see [LICENSE](LICENSE)
-
-## 👤 Author
-
-**Vasyl**
+A personal AI-powered memory system that captures everything you read, watch, and save — and makes it instantly findable.
 
 ---
 
-*Last Updated: January 2026*
+## The Problem
+
+You save dozens of links a week. Articles, YouTube videos, Twitter threads, PDFs, documentation pages. A month later you remember *something* about Kubernetes autoscaling, or a paper on RAG architectures, or that blog post about team communication — but not where you saw it. Bookmarks don't help. They only know titles, and you have thousands of them.
+
+The deeper problem isn't storage. It's retrieval. You need a system that understands what you saved, not just where.
+
+---
+
+## What We're Building
+
+A personal knowledge engine with two core capabilities:
+
+**1. Omni-source inbox**
+Send any URL — article, YouTube video, PDF, tweet, documentation page — and the system captures it. It reads the content, generates a meaningful summary, extracts key concepts, and indexes it semantically. No manual tagging. No friction.
+
+**2. Natural language search**
+Ask "where did I see something about distributed tracing?" and get back: *"You saved this article in March → [link]"* or *"You wrote about this in your Obsidian note → [passage]"*. The answer points you back to the source, not a chunk of text extracted from it.
+
+The system also indexes your **Obsidian vault** — your own writing — with deeper search that surfaces specific passages, not just note titles.
+
+---
+
+## Key Ideas
+
+### Memory retrieval, not RAG
+
+Most search systems built on vector embeddings are optimised for RAG — retrieving passages to feed into an LLM answer. That's the wrong model for a personal knowledge base.
+
+When you ask "where did I read about X?", you want the *source back*, not a synthesised answer. The original article, video, or note is still there. The job is to find it.
+
+This distinction drives the entire architecture:
+- External content (articles, videos, posts) → indexed by summary, one embedding per item
+- Personal notes (Obsidian) → indexed by content, chunk-level embeddings for deep search
+
+### Two-layer source extensibility
+
+Adding support for a new content source is split into two concerns:
+
+**Content acquisition** (code) — how to get the raw text. HTTP fetch, YouTube Transcript API, PDF extraction. A small, stable set of patterns. The HTTP fetcher alone covers the vast majority of web content with no new code.
+
+**Content interpretation** (skill files) — how to understand what was fetched. Each source type has a text-file skill that instructs the AI on what to extract and how to summarise. Adding a new source type means creating a new `.md` skill file — no redeployment.
+
+```
+skills/sources/
+├── article.md          ← general web article (default fallback)
+├── youtube.md          ← video transcripts
+├── academic_paper.md   ← abstract, methodology, conclusions
+├── newsletter.md       ← digest format, key links
+└── tweet_thread.md     ← argument arc
+```
+
+### Skills as configuration
+
+All AI behaviour is defined in plain text skill files stored in Azure Blob Storage and loaded at runtime. Changing how the system processes content means editing a text file, not rewriting code.
+
+### LangChain for provider agnosticism
+
+All LLM and embedding calls go through LangChain interfaces. Models are configuration, not code. Swapping Claude for GPT-4o, or OpenAI embeddings for a local model, is a one-line config change.
+
+Different tasks use different model tiers deliberately:
+
+| Task | Model tier | Why |
+|---|---|---|
+| Source type classification | Haiku | Simple decision, ~200 tokens |
+| Summary + concept extraction | Sonnet | Quality drives search quality |
+| Obsidian note summarisation | Haiku | Short docs, low complexity |
+| Query / Q&A over results | Sonnet | Reasoning required |
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────┐
+│              INTERFACES                     │
+│   Telegram  │  Chrome Extension  │  API     │
+└──────────────────┬──────────────────────────┘
+                   │
+                   ▼
+┌─────────────────────────────────────────────┐
+│         POST /api/inbox/external            │
+│                                             │
+│  [Code]   Detect acquisition strategy       │
+│  [Code]   Acquire raw content               │
+│  [Code]   Load skills/sources/{type}.md     │
+│  [Sonnet] Summarise + extract concepts      │
+│  [Code]   Embed (summary + my_note)         │
+│  [Code]   Dedup check (SHA-256 on URL)      │
+│  [Code]   Store in Cosmos DB                │
+└──────────────────┬──────────────────────────┘
+                   │
+                   ▼
+┌─────────────────────────────────────────────┐
+│           COSMOS DB                         │
+│  external items  │  obsidian notes          │
+│  (1 embedding)   │  (chunk embeddings)      │
+└─────────────────────────────────────────────┘
+```
+
+---
+
+## Storage Model
+
+Two document types in the same Cosmos DB container:
+
+**External** — saved content from the web
+```json
+{
+  "type": "external",
+  "title": "...",
+  "summary": "2-3 sentences, Claude-generated",
+  "key_concepts": ["kubernetes", "autoscaling"],
+  "source_url": "https://...",
+  "source_type": "article | video | tweet | post | pdf",
+  "saved_at": "...",
+  "my_note": "optional annotation",
+  "embedding": [...]
+}
+```
+
+**Note** — your Obsidian vault
+```json
+{
+  "type": "note",
+  "title": "...",
+  "summary": "...",
+  "full_text": "...",
+  "source_path": "Notes/DevOps/keda.md",
+  "hash": "sha256:...",
+  "chunks": [
+    { "index": 0, "start": 0, "end": 500, "embedding": [...] }
+  ]
+}
+```
+
+---
+
+## What's Built
+
+The project evolved from an initial RAG/semantic search engine. The document processing foundation from that phase carries forward:
+
+| Component | Status |
+|---|---|
+| HTML → Markdown processor | ✅ Complete |
+| Content-aware chunker (600-token threshold) | ✅ Complete |
+| Pydantic models, type safety | ✅ Complete |
+| CLI for local ingestion testing | ✅ Complete |
+| External inbox pipeline | 🔄 In progress |
+| Skills infrastructure (Blob loader) | 🔄 In progress |
+| Cosmos DB vector store | 🔄 In progress |
+| Query / search API | 📋 Planned |
+| Telegram bot interface | 📋 Planned |
+| Chrome extension | 📋 Planned |
+| Obsidian vault sync | 📋 Planned |
+
+---
+
+## Tech Stack
+
+- **Python 3.11+** — ingestion pipeline, AI processing
+- **Azure Functions** — serverless compute, HTTP triggers, timer triggers
+- **Azure Cosmos DB** — document store with native vector search
+- **Azure Blob Storage** — skill files, configuration
+- **LangChain** — LLM and embedding abstraction layer
+- **OpenAI** — `text-embedding-3-small` for vectors
+- **Anthropic Claude** — summarisation, concept extraction, Q&A
+
+---
+
+## Documentation
+
+- [Architecture Decision Records](docs/Trajectory-2-second-brain/ADR-second-brain-trajectory.md) — key design decisions and the reasoning behind the shift from RAG to memory model
+- [Original Project Plan](docs/Trajectory-1-RAG-system/semantic-search-engine-plan.md) — full original architecture and Phase 1 implementation details
+- [Chunking Strategy Guide](docs/Trajectory-1-RAG-system/chunking-guide.md) — content-aware chunking for Obsidian notes
+
+---
+
+## Local Development
+
+```bash
+# Create and activate virtual environment
+python -m venv .venv
+.venv\Scripts\activate       # Windows
+source .venv/bin/activate    # macOS/Linux
+
+# Install with dev dependencies
+pip install -e .[dev]
+
+# Run tests
+pytest
+
+# Run with coverage
+pytest --cov=semantic_search --cov-report=html
+
+# Lint and format
+ruff check src/ tests/ --fix
+black src/ tests/
+```
+
+---
+
+*This is a personal project and learning vehicle — for hands-on experience with LangChain, RAG patterns, Azure serverless, and agentic AI workflows.*
