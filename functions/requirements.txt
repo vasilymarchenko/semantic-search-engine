@@ -1,0 +1,30 @@
+# Azure Functions runtime
+azure-functions==1.21.*
+
+# Project library — installed as editable in dev, wheel in CI/prod
+# semantic-search @ file://../
+
+# LLM / embedding (ADR-008)
+langchain>=0.2.0
+langchain-core>=0.2.0
+langchain-anthropic>=0.1.0
+langchain-openai>=0.1.0
+
+# Source-specific acquisition
+youtube-transcript-api>=0.6.0
+pypdf>=4.0.0
+aiohttp>=3.9.0
+
+# Storage
+azure-cosmos>=4.7.0
+azure-storage-blob>=12.19.0
+
+# Config + validation
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# Phase 1 processor deps (already in main pyproject.toml — listed for completeness)
+beautifulsoup4>=4.12.0
+markdownify>=0.11.0
+readability-lxml>=0.8.0
+lxml>=4.9.0
