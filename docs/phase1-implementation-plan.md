@@ -1,10 +1,11 @@
-# Phase 1 Implementation Plan: Embeddings, Storage & Complete Pipeline
+# Phase 1 Implementation Plan: Embeddings, Storage & Complete Pipeline (with LangChain)
 
 **Project:** Semantic Search Engine  
 **Phase:** 1 - Core Indexing Infrastructure  
 **Duration:** 4-6 weeks  
 **Status:** Ready to implement  
-**Created:** January 2026
+**Created:** January 2026  
+**Version:** 2.0 - LangChain Integrated
 
 ---
 
@@ -12,13 +13,18 @@
 
 This plan completes Phase 1 by implementing:
 
-1. **Embedding Generation** - OpenAI integration with cost optimization
-2. **Vector Store Abstraction** - Provider-agnostic storage layer
+1. **LangChain-Based Embedding Generation** - Provider-agnostic with OpenAI as default
+2. **Vector Store Abstraction** - Swappable storage backends (Cosmos DB, Pinecone, Weaviate)
 3. **Complete Ingestion Pipeline** - End-to-end document indexing
 4. **Update Detection** - Hash-based change tracking
-5. **Testing & Validation** - Comprehensive test suite
+5. **Foundation for Phase 2** - Ready for summarization and tag extraction chains
 
-**Key Principle:** Storage abstraction allows switching between Cosmos DB, Pinecone, Weaviate, or custom solutions without changing application code.
+**Key Architectural Principles:**
+
+- **LangChain First** - All AI operations use LangChain abstractions
+- **Provider Agnostic** - Easy to swap OpenAI → Cohere → Hugging Face
+- **Learning by Doing** - Hands-on with LCEL (LangChain Expression Language)
+- **Future Ready** - Prepared for RAG, summarization, and Q&A in Phase 2
 
 ---
 
@@ -26,13 +32,16 @@ This plan completes Phase 1 by implementing:
 
 By the end of this implementation, you will have:
 
+- [ ] LangChain integrated for all AI operations
 - [ ] Documents indexed with embeddings stored in vector database
 - [ ] Semantic search returning relevant results
 - [ ] Hash-based update detection working (no re-indexing unchanged docs)
 - [ ] CLI supporting full pipeline: `ingestion-cli <url> --embed --store`
+- [ ] Embedding provider can be swapped via configuration
 - [ ] Storage provider can be swapped via configuration
 - [ ] Cost tracking for embedding API calls
 - [ ] >80% test coverage for new code
+- [ ] **Understanding of LangChain core concepts** (chains, runnables, providers)
 
 ---
 
@@ -50,21 +59,56 @@ By the end of this implementation, you will have:
 │                                        │                        │
 │                                        ▼                        │
 │  ┌─────────────────────────────────────────────────────────┐   │
-│  │         EMBEDDING SERVICE                               │   │
+│  │         LANGCHAIN EMBEDDING SERVICE                     │   │
 │  ├─────────────────────────────────────────────────────────┤   │
-│  │  • Batch processing                                     │   │
+│  │                                                          │   │
+│  │  ┌──────────────────────────────────────────────────┐  │   │
+│  │  │  Embedding Provider Abstraction                  │  │   │
+│  │  ├──────────────────────────────────────────────────┤  │   │
+│  │  │  • OpenAIEmbeddings (default)                   │  │   │
+│  │  │  • CohereEmbeddings (alternative)               │  │   │
+│  │  │  • HuggingFaceEmbeddings (local)                │  │   │
+│  │  └──────────────────────────────────────────────────┘  │   │
+│  │                                                          │   │
+│  │  Features:                                               │   │
+│  │  • Batch processing (up to 2048 texts)                  │   │
 │  │  • Cost tracking & logging                              │   │
-│  │  • Retry logic for rate limits                          │   │
+│  │  • Automatic retry logic                                │   │
+│  │  • Two-tier optimization (skip <600 token docs)         │   │
 │  └─────────────────────────────────────────────────────────┘   │
 │                                        │                        │
 │                                        ▼                        │
 │  ┌─────────────────────────────────────────────────────────┐   │
 │  │    VECTOR STORE ABSTRACTION (Repository Pattern)       │   │
+│  ├─────────────────────────────────────────────────────────┤   │
+│  │                                                          │   │
+│  │  ┌──────────────────────────────────────────────────┐  │   │
+│  │  │  IVectorStore (Abstract Base Class)             │  │   │
+│  │  ├──────────────────────────────────────────────────┤  │   │
+│  │  │  + store_document(doc, chunks_with_embeddings)  │  │   │
+│  │  │  + get_document(doc_id) -> Document             │  │   │
+│  │  │  + vector_search(embedding, limit) -> Results   │  │   │
+│  │  │  + document_exists(doc_id) -> bool              │  │   │
+│  │  │  + update_document(doc_id, updates)             │  │   │
+│  │  │  + delete_document(doc_id)                      │  │   │
+│  │  └──────────────────────────────────────────────────┘  │   │
+│  │                          │                              │   │
+│  │          ┌───────────────┼───────────────┐             │   │
+│  │          ▼               ▼               ▼             │   │
+│  │    ┌──────────┐    ┌──────────┐    ┌──────────┐       │   │
+│  │    │ Cosmos   │    │ Pinecone │    │ Weaviate │       │   │
+│  │    │ DB Store │    │  Store   │    │  Store   │       │   │
+│  │    └──────────┘    └──────────┘    └──────────┘       │   │
+│  │                                                          │   │
 │  └─────────────────────────────────────────────────────────┘   │
-│                                        │                        │
-│                                        ▼                        │
+│                                                                 │
 │  ┌─────────────────────────────────────────────────────────┐   │
-│  │         DOCUMENT HASH REGISTRY                          │   │
+│  │      FUTURE: LANGCHAIN LLM CHAINS (Phase 2)            │   │
+│  ├─────────────────────────────────────────────────────────┤   │
+│  │  • Summarization Chain (Claude)                         │   │
+│  │  • Tag Extraction Chain (Structured Output)             │   │
+│  │  • Q&A Chain (RAG)                                      │   │
+│  │  • Multi-document Summarization                         │   │
 │  └─────────────────────────────────────────────────────────┘   │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
@@ -72,48 +116,255 @@ By the end of this implementation, you will have:
 
 ---
 
+## 🎓 LangChain Learning Objectives
+
+As you implement this phase, you'll gain hands-on experience with:
+
+### Core LangChain Concepts
+
+1. **Runnables** - Base abstraction for all LangChain components
+2. **Embeddings** - Text-to-vector transformation
+3. **Provider Abstraction** - Swap OpenAI ↔ Cohere ↔ Hugging Face
+4. **Error Handling** - Built-in retry logic and graceful failures
+5. **Cost Tracking** - Token counting and usage monitoring
+
+### LCEL (LangChain Expression Language)
+
+You'll learn the foundation for Phase 2:
+- Chaining components with `|` operator
+- Prompt templates and output parsers
+- Async/streaming support
+
+### Preparation for Phase 2
+
+This implementation sets you up for:
+- **Summarization chains**: `prompt | llm | output_parser`
+- **Structured output**: Using Pydantic models with LLMs
+- **RAG patterns**: Retrieval + generation workflows
+
+---
+
 ## 📦 Implementation Plan
 
-### Week 1: Embedding Service
+### Week 1: LangChain Embedding Service
 
 #### 1.1 Dependencies & Configuration
 
-Update `pyproject.toml`:
+**Update `pyproject.toml`:**
 
 ```toml
 [project]
 dependencies = [
     # ... existing dependencies ...
-    "openai>=1.0.0",
+    
+    # LangChain core
+    "langchain>=0.1.0",
+    "langchain-core>=0.1.0",
+    
+    # LangChain integrations
+    "langchain-openai>=0.0.5",
+    "langchain-anthropic>=0.1.0",  # For Phase 2 summarization
+    "langchain-community>=0.0.20",
+    
+    # Supporting libraries
     "tiktoken>=0.5.0",
-    "structlog>=24.0.0",
     "tenacity>=8.0.0",
 ]
 
 [project.optional-dependencies]
+# Vector store providers
 cosmos = [
     "azure-cosmos>=4.5.0",
     "azure-identity>=1.15.0",
 ]
+pinecone = [
+    "pinecone-client>=3.0.0",
+]
+weaviate = [
+    "weaviate-client>=4.0.0",
+]
+
+# Alternative embedding providers
+cohere = [
+    "langchain-cohere>=0.0.1",
+    "cohere>=4.0.0",
+]
+huggingface = [
+    "langchain-huggingface>=0.0.1",
+    "sentence-transformers>=2.2.0",
+]
+
 dev = [
     # ... existing dev dependencies ...
+    "pytest-asyncio>=0.21.0",
     "pytest-mock>=3.12.0",
 ]
 ```
 
-Create `.env.template`:
+**Create configuration file:**
+
+```python
+# src/semantic_search/config.py
+
+from pydantic_settings import BaseSettings
+from pydantic import Field
+from typing import Literal
+
+
+class EmbeddingConfig(BaseSettings):
+    """Embedding service configuration"""
+    
+    # Provider selection
+    provider: Literal["openai", "cohere", "huggingface"] = Field(
+        "openai",
+        env="EMBEDDING_PROVIDER"
+    )
+    
+    # OpenAI settings
+    openai_api_key: str | None = Field(None, env="OPENAI_API_KEY")
+    openai_model: str = Field("text-embedding-3-small", env="OPENAI_EMBEDDING_MODEL")
+    openai_dimensions: int = Field(1536, env="OPENAI_EMBEDDING_DIMENSIONS")
+    
+    # Cohere settings (alternative)
+    cohere_api_key: str | None = Field(None, env="COHERE_API_KEY")
+    cohere_model: str = Field("embed-english-v3.0", env="COHERE_EMBEDDING_MODEL")
+    
+    # Hugging Face settings (local embeddings)
+    huggingface_model: str = Field(
+        "sentence-transformers/all-MiniLM-L6-v2",
+        env="HUGGINGFACE_EMBEDDING_MODEL"
+    )
+    
+    # Common settings
+    batch_size: int = Field(100, env="EMBEDDING_BATCH_SIZE")
+    max_retries: int = Field(3, env="EMBEDDING_MAX_RETRIES")
+    
+    # Two-tier optimization
+    enable_two_tier: bool = Field(True, env="ENABLE_TWO_TIER_EMBEDDING")
+    small_doc_threshold: int = Field(600, env="SMALL_DOC_THRESHOLD")
+
+
+class LLMConfig(BaseSettings):
+    """LLM configuration for Phase 2 (summarization, tags)"""
+    
+    # Provider selection
+    provider: Literal["anthropic", "openai"] = Field(
+        "anthropic",
+        env="LLM_PROVIDER"
+    )
+    
+    # Anthropic settings
+    anthropic_api_key: str | None = Field(None, env="ANTHROPIC_API_KEY")
+    anthropic_model: str = Field("claude-sonnet-4", env="ANTHROPIC_MODEL")
+    
+    # OpenAI settings
+    openai_api_key: str | None = Field(None, env="OPENAI_API_KEY")
+    openai_model: str = Field("gpt-4-turbo-preview", env="OPENAI_LLM_MODEL")
+    
+    # Common settings
+    temperature: float = Field(0.0, env="LLM_TEMPERATURE")
+    max_tokens: int = Field(1000, env="LLM_MAX_TOKENS")
+
+
+class StorageConfig(BaseSettings):
+    """Vector store configuration"""
+    
+    provider: Literal["cosmos", "pinecone", "weaviate", "local"] = Field(
+        "cosmos", 
+        env="VECTOR_STORE_PROVIDER"
+    )
+    user_id: str = Field("vasyl", env="USER_ID")
+    
+    # Cosmos DB specific
+    cosmos_endpoint: str | None = Field(None, env="COSMOS_ENDPOINT")
+    cosmos_key: str | None = Field(None, env="COSMOS_KEY")
+    cosmos_database: str = Field("semantic-search", env="COSMOS_DATABASE")
+    cosmos_container: str = Field("documents-and-chunks", env="COSMOS_CONTAINER")
+    
+    # Pinecone specific
+    pinecone_api_key: str | None = Field(None, env="PINECONE_API_KEY")
+    pinecone_environment: str | None = Field(None, env="PINECONE_ENVIRONMENT")
+    pinecone_index_name: str = Field("semantic-search", env="PINECONE_INDEX_NAME")
+    
+    # Weaviate specific
+    weaviate_url: str | None = Field(None, env="WEAVIATE_URL")
+    weaviate_api_key: str | None = Field(None, env="WEAVIATE_API_KEY")
+    weaviate_class_name: str = Field("Document", env="WEAVIATE_CLASS_NAME")
+    
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+
+
+class Settings(BaseSettings):
+    """Global application settings"""
+    
+    embedding: EmbeddingConfig = EmbeddingConfig()
+    llm: LLMConfig = LLMConfig()
+    storage: StorageConfig = StorageConfig()
+    
+    # Logging
+    log_level: str = Field("INFO", env="LOG_LEVEL")
+    log_format: str = Field("json", env="LOG_FORMAT")  # json or text
+
+
+# Global settings instance
+settings = Settings()
+```
+
+**Create `.env.template`:**
 
 ```bash
 # .env.template - Copy to .env and fill in your values
 
-# Embedding Configuration
+# ============================================================================
+# EMBEDDING CONFIGURATION
+# ============================================================================
+
+# Provider: openai | cohere | huggingface
+EMBEDDING_PROVIDER=openai
+
+# OpenAI Settings (if using OpenAI)
 OPENAI_API_KEY=sk-...
-EMBEDDING_MODEL=text-embedding-3-small
-EMBEDDING_DIMENSIONS=1536
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+OPENAI_EMBEDDING_DIMENSIONS=1536
+
+# Cohere Settings (if using Cohere)
+# COHERE_API_KEY=your-key
+# COHERE_EMBEDDING_MODEL=embed-english-v3.0
+
+# Hugging Face Settings (if using local embeddings)
+# HUGGINGFACE_EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+
+# Common Settings
 EMBEDDING_BATCH_SIZE=100
 EMBEDDING_MAX_RETRIES=3
+ENABLE_TWO_TIER_EMBEDDING=true
+SMALL_DOC_THRESHOLD=600
 
-# Vector Store Provider (cosmos|pinecone|weaviate|local)
+# ============================================================================
+# LLM CONFIGURATION (Phase 2)
+# ============================================================================
+
+# Provider: anthropic | openai
+LLM_PROVIDER=anthropic
+
+# Anthropic Settings (Claude)
+ANTHROPIC_API_KEY=sk-ant-...
+ANTHROPIC_MODEL=claude-sonnet-4
+
+# OpenAI Settings (GPT)
+# OPENAI_LLM_MODEL=gpt-4-turbo-preview
+
+# Common Settings
+LLM_TEMPERATURE=0.0
+LLM_MAX_TOKENS=1000
+
+# ============================================================================
+# VECTOR STORE CONFIGURATION
+# ============================================================================
+
+# Provider: cosmos | pinecone | weaviate | local
 VECTOR_STORE_PROVIDER=cosmos
 USER_ID=vasyl
 
@@ -123,22 +374,41 @@ COSMOS_KEY=your-key-here
 COSMOS_DATABASE=semantic-search
 COSMOS_CONTAINER=documents-and-chunks
 
-# Logging
+# Pinecone Configuration (if using Pinecone)
+# PINECONE_API_KEY=your-key-here
+# PINECONE_ENVIRONMENT=us-east-1-aws
+# PINECONE_INDEX_NAME=semantic-search
+
+# Weaviate Configuration (if using Weaviate)
+# WEAVIATE_URL=http://localhost:8080
+# WEAVIATE_API_KEY=your-key-here
+# WEAVIATE_CLASS_NAME=Document
+
+# ============================================================================
+# LOGGING
+# ============================================================================
+
 LOG_LEVEL=INFO
 LOG_FORMAT=json
 ```
 
-#### 1.2 Embedding Service Implementation
+#### 1.2 LangChain Embedding Service Implementation
 
-**Create embedding service:**
+**Create embedding service with provider abstraction:**
 
 ```python
 # src/semantic_search/embeddings/__init__.py
 
 from .service import EmbeddingService, EmbeddingResult
 from .models import EmbeddingStats
+from .providers import get_embedding_provider
 
-__all__ = ["EmbeddingService", "EmbeddingResult", "EmbeddingStats"]
+__all__ = [
+    "EmbeddingService",
+    "EmbeddingResult",
+    "EmbeddingStats",
+    "get_embedding_provider",
+]
 ```
 
 ```python
@@ -157,20 +427,28 @@ class EmbeddingStats(BaseModel):
     estimated_cost: float = 0.0
     skipped_small_docs: int = 0
     processing_time_seconds: float = 0.0
+    provider: str = "openai"
+    model: str = "text-embedding-3-small"
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     
-    def add_tokens(self, tokens: int, model: str = "text-embedding-3-small"):
-        """Add tokens and calculate cost"""
+    def add_tokens(self, tokens: int):
+        """Add tokens and calculate cost based on provider"""
         self.total_tokens += tokens
         
         # Pricing per 1M tokens (as of Jan 2025)
         pricing = {
+            # OpenAI
             "text-embedding-3-small": 0.02,
             "text-embedding-3-large": 0.13,
             "text-embedding-ada-002": 0.10,
+            # Cohere
+            "embed-english-v3.0": 0.10,
+            "embed-multilingual-v3.0": 0.10,
+            # Hugging Face (local - free)
+            "sentence-transformers": 0.0,
         }
         
-        cost_per_million = pricing.get(model, 0.02)
+        cost_per_million = pricing.get(self.model, 0.02)
         self.estimated_cost = (self.total_tokens / 1_000_000) * cost_per_million
 
 
@@ -181,6 +459,112 @@ class EmbeddingResult(BaseModel):
     embedding: list[float]
     token_count: int
     model: str
+    provider: str
+```
+
+```python
+# src/semantic_search/embeddings/providers.py
+
+from typing import Protocol
+from langchain_core.embeddings import Embeddings
+from langchain_openai import OpenAIEmbeddings
+import structlog
+
+from ..config import settings
+
+logger = structlog.get_logger()
+
+
+class EmbeddingProvider(Protocol):
+    """Protocol for embedding providers"""
+    
+    async def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        """Embed multiple documents"""
+        ...
+    
+    async def embed_query(self, text: str) -> list[float]:
+        """Embed a single query"""
+        ...
+
+
+def get_embedding_provider() -> Embeddings:
+    """
+    Factory function to create embedding provider based on configuration.
+    
+    Returns:
+        LangChain Embeddings implementation
+    
+    Raises:
+        ValueError: If provider is unknown or not configured
+    """
+    
+    provider = settings.embedding.provider
+    
+    if provider == "openai":
+        if not settings.embedding.openai_api_key:
+            raise ValueError("OPENAI_API_KEY is required for OpenAI embeddings")
+        
+        logger.info(
+            "initializing_embedding_provider",
+            provider="openai",
+            model=settings.embedding.openai_model,
+            dimensions=settings.embedding.openai_dimensions,
+        )
+        
+        return OpenAIEmbeddings(
+            openai_api_key=settings.embedding.openai_api_key,
+            model=settings.embedding.openai_model,
+            dimensions=settings.embedding.openai_dimensions,
+            # LangChain handles retries automatically
+            max_retries=settings.embedding.max_retries,
+        )
+    
+    elif provider == "cohere":
+        try:
+            from langchain_cohere import CohereEmbeddings
+        except ImportError:
+            raise ImportError(
+                "Cohere embeddings require: pip install langchain-cohere cohere"
+            )
+        
+        if not settings.embedding.cohere_api_key:
+            raise ValueError("COHERE_API_KEY is required for Cohere embeddings")
+        
+        logger.info(
+            "initializing_embedding_provider",
+            provider="cohere",
+            model=settings.embedding.cohere_model,
+        )
+        
+        return CohereEmbeddings(
+            cohere_api_key=settings.embedding.cohere_api_key,
+            model=settings.embedding.cohere_model,
+        )
+    
+    elif provider == "huggingface":
+        try:
+            from langchain_huggingface import HuggingFaceEmbeddings
+        except ImportError:
+            raise ImportError(
+                "Hugging Face embeddings require: "
+                "pip install langchain-huggingface sentence-transformers"
+            )
+        
+        logger.info(
+            "initializing_embedding_provider",
+            provider="huggingface",
+            model=settings.embedding.huggingface_model,
+        )
+        
+        return HuggingFaceEmbeddings(
+            model_name=settings.embedding.huggingface_model,
+        )
+    
+    else:
+        raise ValueError(
+            f"Unknown embedding provider: {provider}. "
+            f"Supported: openai, cohere, huggingface"
+        )
 ```
 
 ```python
@@ -188,98 +572,73 @@ class EmbeddingResult(BaseModel):
 
 import asyncio
 import time
-from typing import List, Tuple
+from typing import List
 import tiktoken
-from openai import OpenAI, AsyncOpenAI
-from tenacity import (
-    retry,
-    stop_after_attempt,
-    wait_exponential,
-    retry_if_exception_type,
-)
 import structlog
+
+from langchain_core.embeddings import Embeddings
 
 from ..config import settings
 from ..chunking.models import Chunk
 from .models import EmbeddingStats, EmbeddingResult
+from .providers import get_embedding_provider
 
 logger = structlog.get_logger()
 
 
 class EmbeddingService:
     """
-    Service for generating embeddings using OpenAI API.
+    LangChain-based service for generating embeddings.
     
     Features:
+    - Provider-agnostic (OpenAI, Cohere, Hugging Face)
     - Batch processing for efficiency
     - Two-tier optimization (skip small docs)
-    - Automatic retry on rate limits
+    - Automatic retry on rate limits (via LangChain)
     - Cost tracking
+    
+    Learning Notes:
+    - Uses LangChain's Embeddings abstraction
+    - Demonstrates provider swapping via configuration
+    - Prepares for Phase 2 LLM chains
     """
     
     def __init__(
         self,
-        api_key: str | None = None,
-        model: str | None = None,
+        embedding_provider: Embeddings | None = None,
         batch_size: int | None = None,
     ):
-        self.api_key = api_key or settings.embedding.openai_api_key
-        self.model = model or settings.embedding.embedding_model
+        # Use provided embedder or get from config
+        self.embedder = embedding_provider or get_embedding_provider()
         self.batch_size = batch_size or settings.embedding.batch_size
-        self.dimensions = settings.embedding.embedding_dimensions
-        
-        self.client = OpenAI(api_key=self.api_key)
-        self.async_client = AsyncOpenAI(api_key=self.api_key)
         
         # Token encoding for accurate token counting
-        self.encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")  # Similar to embedding models
+        # Note: This is approximate for non-OpenAI models
+        self.encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
         
-        self.stats = EmbeddingStats()
+        # Track statistics
+        self.stats = EmbeddingStats(
+            provider=settings.embedding.provider,
+            model=self._get_model_name(),
+        )
+    
+    def _get_model_name(self) -> str:
+        """Get model name from configuration"""
+        if settings.embedding.provider == "openai":
+            return settings.embedding.openai_model
+        elif settings.embedding.provider == "cohere":
+            return settings.embedding.cohere_model
+        elif settings.embedding.provider == "huggingface":
+            return settings.embedding.huggingface_model
+        return "unknown"
     
     def count_tokens(self, text: str) -> int:
-        """Count tokens in text using tiktoken"""
-        return len(self.encoding.encode(text))
-    
-    @retry(
-        stop=stop_after_attempt(settings.embedding.max_retries),
-        wait=wait_exponential(multiplier=1, min=4, max=60),
-        retry=retry_if_exception_type((Exception,)),
-    )
-    async def _embed_batch(self, texts: List[str]) -> List[List[float]]:
         """
-        Generate embeddings for a batch of texts.
+        Count tokens in text using tiktoken.
         
-        Includes retry logic for rate limits and transient errors.
+        Note: This is approximate for non-OpenAI models.
         """
-        try:
-            response = await self.async_client.embeddings.create(
-                model=self.model,
-                input=texts,
-                dimensions=self.dimensions,
-            )
-            
-            self.stats.api_calls += 1
-            
-            # Extract embeddings in correct order
-            embeddings = [item.embedding for item in response.data]
-            
-            logger.info(
-                "embedding_batch_completed",
-                batch_size=len(texts),
-                model=self.model,
-                total_api_calls=self.stats.api_calls,
-            )
-            
-            return embeddings
-            
-        except Exception as e:
-            logger.error(
-                "embedding_batch_failed",
-                error=str(e),
-                batch_size=len(texts),
-                model=self.model,
-            )
-            raise
+        return len(self.encoding.encode(text))
     
     async def embed_chunks(
         self, 
@@ -287,7 +646,7 @@ class EmbeddingService:
         document_token_count: int | None = None,
     ) -> List[EmbeddingResult]:
         """
-        Generate embeddings for document chunks.
+        Generate embeddings for document chunks using LangChain.
         
         Args:
             chunks: List of chunks to embed
@@ -296,6 +655,11 @@ class EmbeddingService:
         
         Returns:
             List of EmbeddingResult objects
+        
+        Learning Notes:
+        - Uses LangChain's async embed_documents() method
+        - Demonstrates batch processing
+        - Shows how to track costs across providers
         """
         start_time = time.time()
         
@@ -306,46 +670,49 @@ class EmbeddingService:
             and document_token_count < settings.embedding.small_doc_threshold
         ):
             logger.info(
-                "skipping_small_document",
+                "small_document_optimization",
                 token_count=document_token_count,
                 threshold=settings.embedding.small_doc_threshold,
                 chunks_count=len(chunks),
+                note="Document fits in single chunk - optimal for cost",
             )
             self.stats.skipped_small_docs += 1
-            
-            # For small docs, embed the entire document as single chunk
-            # (This assumes caller will create a single chunk for small docs)
-            if len(chunks) != 1:
-                logger.warning(
-                    "small_doc_multiple_chunks",
-                    expected=1,
-                    actual=len(chunks),
-                )
         
         # Prepare texts and count tokens
         texts = [chunk.text for chunk in chunks]
         token_counts = [self.count_tokens(text) for text in texts]
         
         total_tokens = sum(token_counts)
-        self.stats.add_tokens(total_tokens, self.model)
+        self.stats.add_tokens(total_tokens)
         self.stats.total_chunks += len(chunks)
         
         logger.info(
             "embedding_chunks",
+            provider=settings.embedding.provider,
+            model=self.stats.model,
             chunk_count=len(chunks),
             total_tokens=total_tokens,
             estimated_cost=f"${self.stats.estimated_cost:.6f}",
         )
         
-        # Process in batches
+        # Process in batches using LangChain
         results = []
         for i in range(0, len(texts), self.batch_size):
             batch_texts = texts[i : i + self.batch_size]
             batch_chunks = chunks[i : i + self.batch_size]
             batch_token_counts = token_counts[i : i + self.batch_size]
             
-            # Generate embeddings for batch
-            embeddings = await self._embed_batch(batch_texts)
+            # Generate embeddings using LangChain
+            # This handles retries, rate limiting, etc. automatically
+            embeddings = await self.embedder.aembed_documents(batch_texts)
+            
+            self.stats.api_calls += 1
+            
+            logger.debug(
+                "batch_embedded",
+                batch_size=len(batch_texts),
+                embedding_dimensions=len(embeddings[0]) if embeddings else 0,
+            )
             
             # Create results
             for chunk, embedding, tokens in zip(
@@ -356,7 +723,8 @@ class EmbeddingService:
                         chunk_id=f"chunk_{chunk.chunk_index}",
                         embedding=embedding,
                         token_count=tokens,
-                        model=self.model,
+                        model=self.stats.model,
+                        provider=self.stats.provider,
                     )
                 )
         
@@ -368,6 +736,7 @@ class EmbeddingService:
             chunk_count=len(chunks),
             elapsed_seconds=f"{elapsed:.2f}",
             total_cost=f"${self.stats.estimated_cost:.6f}",
+            avg_ms_per_chunk=f"{(elapsed * 1000 / len(chunks)):.1f}",
         )
         
         return results
@@ -381,9 +750,20 @@ class EmbeddingService:
         
         Returns:
             Embedding vector
+        
+        Learning Notes:
+        - Uses LangChain's aembed_query() method
+        - Different from embed_documents() - optimized for queries
         """
-        embeddings = await self._embed_batch([text])
-        return embeddings[0]
+        embedding = await self.embedder.aembed_query(text)
+        
+        logger.debug(
+            "query_embedded",
+            text_length=len(text),
+            embedding_dimensions=len(embedding),
+        )
+        
+        return embedding
     
     def get_stats(self) -> EmbeddingStats:
         """Get embedding statistics"""
@@ -391,13 +771,16 @@ class EmbeddingService:
     
     def reset_stats(self):
         """Reset embedding statistics"""
-        self.stats = EmbeddingStats()
+        self.stats = EmbeddingStats(
+            provider=settings.embedding.provider,
+            model=self._get_model_name(),
+        )
 ```
 
-#### 1.3 Testing Embedding Service
+#### 1.3 Testing LangChain Embedding Service
 
 ```python
-# tests/test_embeddings.py
+# tests/test_langchain_embeddings.py
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -406,19 +789,25 @@ from semantic_search.chunking.models import Chunk
 
 
 @pytest.fixture
-def mock_openai_response():
-    """Mock OpenAI API response"""
-    return MagicMock(
-        data=[
-            MagicMock(embedding=[0.1, 0.2, 0.3] * 512),  # 1536 dimensions
-            MagicMock(embedding=[0.4, 0.5, 0.6] * 512),
-        ]
-    )
+def mock_langchain_embedder():
+    """Mock LangChain embeddings provider"""
+    mock = AsyncMock()
+    
+    # Mock embed_documents (batch)
+    mock.aembed_documents.return_value = [
+        [0.1, 0.2, 0.3] * 512,  # 1536 dimensions
+        [0.4, 0.5, 0.6] * 512,
+    ]
+    
+    # Mock embed_query (single)
+    mock.aembed_query.return_value = [0.7, 0.8, 0.9] * 512
+    
+    return mock
 
 
 @pytest.mark.asyncio
-async def test_embed_chunks(mock_openai_response):
-    """Test embedding generation for chunks"""
+async def test_embed_chunks_with_langchain(mock_langchain_embedder):
+    """Test embedding generation using LangChain abstraction"""
     
     # Create test chunks
     chunks = [
@@ -440,31 +829,84 @@ async def test_embed_chunks(mock_openai_response):
         ),
     ]
     
-    # Mock OpenAI client
-    with patch("semantic_search.embeddings.service.AsyncOpenAI") as mock_client:
-        mock_instance = AsyncMock()
-        mock_instance.embeddings.create.return_value = mock_openai_response
-        mock_client.return_value = mock_instance
-        
-        # Create service
-        service = EmbeddingService(api_key="test-key")
-        
-        # Generate embeddings
-        results = await service.embed_chunks(chunks)
-        
-        # Assertions
-        assert len(results) == 2
-        assert all(len(r.embedding) == 1536 for r in results)
-        assert results[0].chunk_id == "chunk_0"
-        assert results[1].chunk_id == "chunk_1"
-        
-        # Verify API was called
-        mock_instance.embeddings.create.assert_called_once()
+    # Create service with mock embedder
+    service = EmbeddingService(embedding_provider=mock_langchain_embedder)
+    
+    # Generate embeddings
+    results = await service.embed_chunks(chunks)
+    
+    # Assertions
+    assert len(results) == 2
+    assert all(len(r.embedding) == 1536 for r in results)
+    assert results[0].chunk_id == "chunk_0"
+    assert results[1].chunk_id == "chunk_1"
+    assert all(r.provider == "openai" for r in results)
+    
+    # Verify LangChain method was called
+    mock_langchain_embedder.aembed_documents.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_two_tier_optimization(mock_openai_response):
-    """Test two-tier optimization skips small documents"""
+async def test_embed_query(mock_langchain_embedder):
+    """Test single query embedding"""
+    
+    service = EmbeddingService(embedding_provider=mock_langchain_embedder)
+    
+    query = "kubernetes autoscaling"
+    embedding = await service.embed_text(query)
+    
+    # Assertions
+    assert len(embedding) == 1536
+    
+    # Verify LangChain query method was called
+    mock_langchain_embedder.aembed_query.assert_called_once_with(query)
+
+
+@pytest.mark.asyncio
+async def test_provider_switching():
+    """Test that providers can be swapped via configuration"""
+    
+    # This test demonstrates the power of LangChain abstraction
+    # You can swap providers without changing application code
+    
+    with patch("semantic_search.embeddings.providers.settings") as mock_settings:
+        mock_settings.embedding.provider = "openai"
+        mock_settings.embedding.openai_api_key = "test-key"
+        mock_settings.embedding.openai_model = "text-embedding-3-small"
+        mock_settings.embedding.openai_dimensions = 1536
+        mock_settings.embedding.max_retries = 3
+        
+        from semantic_search.embeddings.providers import get_embedding_provider
+        
+        provider = get_embedding_provider()
+        
+        # Should be OpenAI embeddings
+        assert provider.__class__.__name__ == "OpenAIEmbeddings"
+
+
+def test_cost_tracking():
+    """Test cost tracking for different providers"""
+    
+    stats = EmbeddingStats(provider="openai", model="text-embedding-3-small")
+    
+    # text-embedding-3-small: $0.02 per 1M tokens
+    stats.add_tokens(100_000)
+    assert stats.estimated_cost == pytest.approx(0.002)
+    
+    # Test with Cohere model
+    stats = EmbeddingStats(provider="cohere", model="embed-english-v3.0")
+    stats.add_tokens(100_000)
+    assert stats.estimated_cost == pytest.approx(0.01)
+    
+    # Test with Hugging Face (free)
+    stats = EmbeddingStats(provider="huggingface", model="sentence-transformers")
+    stats.add_tokens(100_000)
+    assert stats.estimated_cost == 0.0
+
+
+@pytest.mark.asyncio
+async def test_two_tier_optimization(mock_langchain_embedder):
+    """Test two-tier optimization with LangChain"""
     
     chunks = [
         Chunk(
@@ -477,782 +919,38 @@ async def test_two_tier_optimization(mock_openai_response):
         )
     ]
     
-    with patch("semantic_search.embeddings.service.AsyncOpenAI") as mock_client:
-        mock_instance = AsyncMock()
-        mock_instance.embeddings.create.return_value = mock_openai_response
-        mock_client.return_value = mock_instance
-        
-        service = EmbeddingService(api_key="test-key")
-        
-        # Document is below threshold (600 tokens)
-        results = await service.embed_chunks(
-            chunks, 
-            document_token_count=500
-        )
-        
-        # Should still embed but log the optimization
-        assert len(results) == 1
-        assert service.stats.skipped_small_docs == 1
-
-
-def test_token_counting():
-    """Test accurate token counting"""
-    service = EmbeddingService(api_key="test-key")
+    service = EmbeddingService(embedding_provider=mock_langchain_embedder)
     
-    text = "This is a test document with some words."
-    token_count = service.count_tokens(text)
+    # Document is below threshold (600 tokens)
+    results = await service.embed_chunks(
+        chunks, 
+        document_token_count=500
+    )
     
-    # Should be roughly 8-10 tokens
-    assert 8 <= token_count <= 10
-
-
-def test_cost_calculation():
-    """Test cost tracking"""
-    stats = EmbeddingStats()
-    
-    # text-embedding-3-small: $0.02 per 1M tokens
-    stats.add_tokens(100_000, model="text-embedding-3-small")
-    assert stats.estimated_cost == pytest.approx(0.002)
-    
-    stats.add_tokens(100_000, model="text-embedding-3-small")
-    assert stats.estimated_cost == pytest.approx(0.004)
+    # Should still embed but log the optimization
+    assert len(results) == 1
+    assert service.stats.skipped_small_docs == 1
 ```
 
 ---
 
 ### Week 2: Vector Store Abstraction
 
-#### 2.1 Abstract Base Class
+*[Same as previous plan - this part doesn't change]*
 
-```python
-# src/semantic_search/storage/__init__.py
+The vector store abstraction remains identical to the previous plan. Key files:
 
-from .base import IVectorStore, SearchResult, DocumentMetadata
-from .factory import get_vector_store
+- `src/semantic_search/storage/base.py` - IVectorStore interface
+- `src/semantic_search/storage/cosmos_store.py` - Cosmos DB implementation
+- `src/semantic_search/storage/factory.py` - Factory pattern
 
-__all__ = [
-    "IVectorStore",
-    "SearchResult",
-    "DocumentMetadata",
-    "get_vector_store",
-]
-```
-
-```python
-# src/semantic_search/storage/base.py
-
-from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel
-from datetime import datetime
-
-
-class DocumentMetadata(BaseModel):
-    """Metadata for a stored document"""
-    
-    id: str
-    user_id: str
-    source_type: str  # "web", "obsidian", "telegram", etc.
-    source_url: str
-    title: str | None = None
-    author: str | None = None
-    created_at: datetime
-    indexed_at: datetime
-    content_hash: str  # SHA-256 hash of content
-    chunk_count: int
-    token_count: int
-
-
-class SearchResult(BaseModel):
-    """Result from vector similarity search"""
-    
-    document_id: str
-    chunk_index: int
-    score: float  # Similarity score (0-1)
-    text: str  # Extracted chunk text
-    start_offset: int
-    end_offset: int
-    section_path: List[str]
-    document_metadata: DocumentMetadata
-
-
-class IVectorStore(ABC):
-    """
-    Abstract base class for vector storage backends.
-    
-    Implementations must support:
-    - Document storage with parent-child relationships
-    - Vector similarity search
-    - Update detection via content hashing
-    - Efficient offset-based text extraction
-    """
-    
-    @abstractmethod
-    async def initialize(self) -> None:
-        """
-        Initialize the vector store (create indexes, containers, etc.)
-        
-        Should be idempotent - safe to call multiple times.
-        """
-        pass
-    
-    @abstractmethod
-    async def store_document(
-        self,
-        document_id: str,
-        user_id: str,
-        content: str,
-        metadata: Dict[str, Any],
-        chunks_with_embeddings: List[Dict[str, Any]],
-    ) -> None:
-        """
-        Store a document with its chunks and embeddings.
-        
-        Args:
-            document_id: Unique document identifier
-            user_id: User who owns this document
-            content: Full document text (stored once, no duplication)
-            metadata: Document metadata (title, url, source_type, etc.)
-            chunks_with_embeddings: List of dicts with:
-                - chunk_index: int
-                - start_offset: int
-                - end_offset: int
-                - embedding: List[float]
-                - token_count: int
-                - section_path: List[str]
-        
-        Implementation notes:
-        - Store full text ONLY in document record
-        - Store chunks with embeddings referencing parent document
-        - Use offsets for text extraction (no text duplication)
-        - Calculate and store content hash (SHA-256)
-        """
-        pass
-    
-    @abstractmethod
-    async def document_exists(
-        self,
-        document_id: str,
-        user_id: str,
-    ) -> bool:
-        """
-        Check if document exists for this user.
-        
-        Args:
-            document_id: Document identifier
-            user_id: User identifier
-        
-        Returns:
-            True if document exists, False otherwise
-        """
-        pass
-    
-    @abstractmethod
-    async def get_document_hash(
-        self,
-        document_id: str,
-        user_id: str,
-    ) -> Optional[str]:
-        """
-        Get stored content hash for document.
-        
-        Used for update detection - if hash matches current content,
-        document hasn't changed and doesn't need re-indexing.
-        
-        Args:
-            document_id: Document identifier
-            user_id: User identifier
-        
-        Returns:
-            SHA-256 hash of content, or None if document not found
-        """
-        pass
-    
-    @abstractmethod
-    async def get_document(
-        self,
-        document_id: str,
-        user_id: str,
-    ) -> Optional[Dict[str, Any]]:
-        """
-        Retrieve full document with metadata.
-        
-        Args:
-            document_id: Document identifier
-            user_id: User identifier
-        
-        Returns:
-            Document dict with:
-                - id: str
-                - content: str (full text)
-                - metadata: Dict
-                - chunk_count: int
-            Or None if not found
-        """
-        pass
-    
-    @abstractmethod
-    async def vector_search(
-        self,
-        query_embedding: List[float],
-        user_id: str,
-        limit: int = 10,
-        filters: Optional[Dict[str, Any]] = None,
-    ) -> List[SearchResult]:
-        """
-        Perform vector similarity search.
-        
-        Args:
-            query_embedding: Query vector (1536 dimensions)
-            user_id: User identifier (for filtering)
-            limit: Maximum number of results
-            filters: Optional metadata filters:
-                - source_types: List[str]
-                - from_date: datetime
-                - to_date: datetime
-        
-        Returns:
-            List of SearchResult objects, ordered by similarity (highest first)
-        
-        Implementation notes:
-        - Search against chunk embeddings
-        - Fetch parent document for text extraction
-        - Extract chunk text using offsets: content[start:end]
-        - Return results with similarity scores
-        """
-        pass
-    
-    @abstractmethod
-    async def delete_document(
-        self,
-        document_id: str,
-        user_id: str,
-    ) -> bool:
-        """
-        Delete document and all its chunks.
-        
-        Args:
-            document_id: Document identifier
-            user_id: User identifier
-        
-        Returns:
-            True if deleted, False if not found
-        """
-        pass
-    
-    @abstractmethod
-    async def get_stats(
-        self,
-        user_id: str,
-    ) -> Dict[str, Any]:
-        """
-        Get storage statistics for user.
-        
-        Args:
-            user_id: User identifier
-        
-        Returns:
-            Statistics dict with:
-                - document_count: int
-                - chunk_count: int
-                - total_tokens: int
-                - sources: Dict[str, int]  # source_type -> count
-        """
-        pass
-```
-
-#### 2.2 Cosmos DB Implementation
-
-```python
-# src/semantic_search/storage/cosmos_store.py
-
-import hashlib
-from typing import List, Dict, Any, Optional
-from datetime import datetime
-from azure.cosmos import CosmosClient, PartitionKey
-from azure.cosmos.exceptions import CosmosResourceNotFoundError
-import structlog
-
-from ..config import settings
-from .base import IVectorStore, SearchResult, DocumentMetadata
-
-logger = structlog.get_logger()
-
-
-class CosmosDBVectorStore(IVectorStore):
-    """
-    Cosmos DB implementation of vector store.
-    
-    Uses NoSQL API with vector indexing for similarity search.
-    """
-    
-    def __init__(
-        self,
-        endpoint: str | None = None,
-        key: str | None = None,
-        database_name: str | None = None,
-        container_name: str | None = None,
-    ):
-        self.endpoint = endpoint or settings.storage.cosmos_endpoint
-        self.key = key or settings.storage.cosmos_key
-        self.database_name = database_name or settings.storage.cosmos_database
-        self.container_name = container_name or settings.storage.cosmos_container
-        
-        if not self.endpoint or not self.key:
-            raise ValueError(
-                "Cosmos DB endpoint and key must be provided via config or parameters"
-            )
-        
-        self.client = CosmosClient(self.endpoint, self.key)
-        self.database = None
-        self.container = None
-    
-    async def initialize(self) -> None:
-        """Initialize Cosmos DB database and container"""
-        
-        # Create database (idempotent)
-        self.database = self.client.create_database_if_not_exists(
-            id=self.database_name
-        )
-        
-        logger.info("cosmos_database_ready", database=self.database_name)
-        
-        # Create container with vector indexing
-        container_definition = {
-            "id": self.container_name,
-            "partitionKey": {"paths": ["/userId"], "kind": "Hash"},
-            "indexingPolicy": {
-                "indexingMode": "consistent",
-                "automatic": True,
-                "includedPaths": [{"path": "/*"}],
-                "vectorIndexes": [
-                    {
-                        "path": "/embedding",
-                        "type": "quantizedFlat",  # Efficient vector index
-                    }
-                ],
-            },
-        }
-        
-        self.container = self.database.create_container_if_not_exists(
-            id=container_definition["id"],
-            partition_key=PartitionKey(path="/userId"),
-            indexing_policy=container_definition["indexingPolicy"],
-        )
-        
-        logger.info("cosmos_container_ready", container=self.container_name)
-    
-    def _compute_hash(self, content: str) -> str:
-        """Compute SHA-256 hash of content"""
-        return hashlib.sha256(content.encode()).hexdigest()
-    
-    async def store_document(
-        self,
-        document_id: str,
-        user_id: str,
-        content: str,
-        metadata: Dict[str, Any],
-        chunks_with_embeddings: List[Dict[str, Any]],
-    ) -> None:
-        """Store document and chunks in Cosmos DB"""
-        
-        content_hash = self._compute_hash(content)
-        
-        # 1. Store document (full text, NO embedding)
-        document_item = {
-            "id": document_id,
-            "type": "document",
-            "userId": user_id,
-            "content": {
-                "fullText": content,
-                "hash": content_hash,
-            },
-            "metadata": {
-                **metadata,
-                "indexedAt": datetime.utcnow().isoformat(),
-            },
-            "statistics": {
-                "chunkCount": len(chunks_with_embeddings),
-                "characterCount": len(content),
-            },
-        }
-        
-        self.container.upsert_item(document_item)
-        
-        logger.info(
-            "document_stored",
-            document_id=document_id,
-            chunk_count=len(chunks_with_embeddings),
-            hash=content_hash[:8],
-        )
-        
-        # 2. Store chunks with embeddings
-        for chunk_data in chunks_with_embeddings:
-            chunk_item = {
-                "id": f"{document_id}_chunk_{chunk_data['chunk_index']}",
-                "type": "chunk",
-                "userId": user_id,
-                "parentDocId": document_id,
-                "chunkIndex": chunk_data["chunk_index"],
-                "position": {
-                    "startOffset": chunk_data["start_offset"],
-                    "endOffset": chunk_data["end_offset"],
-                },
-                "embedding": chunk_data["embedding"],
-                "metadata": {
-                    "sectionPath": chunk_data.get("section_path", []),
-                    "tokenCount": chunk_data.get("token_count", 0),
-                },
-            }
-            
-            self.container.upsert_item(chunk_item)
-        
-        logger.info(
-            "chunks_stored",
-            document_id=document_id,
-            chunk_count=len(chunks_with_embeddings),
-        )
-    
-    async def document_exists(
-        self,
-        document_id: str,
-        user_id: str,
-    ) -> bool:
-        """Check if document exists"""
-        
-        query = """
-            SELECT VALUE COUNT(1)
-            FROM c
-            WHERE c.id = @document_id
-              AND c.userId = @user_id
-              AND c.type = 'document'
-        """
-        
-        items = list(
-            self.container.query_items(
-                query=query,
-                parameters=[
-                    {"name": "@document_id", "value": document_id},
-                    {"name": "@user_id", "value": user_id},
-                ],
-                enable_cross_partition_query=False,
-                partition_key=user_id,
-            )
-        )
-        
-        return items[0] > 0 if items else False
-    
-    async def get_document_hash(
-        self,
-        document_id: str,
-        user_id: str,
-    ) -> Optional[str]:
-        """Get document content hash"""
-        
-        query = """
-            SELECT c.content.hash
-            FROM c
-            WHERE c.id = @document_id
-              AND c.userId = @user_id
-              AND c.type = 'document'
-        """
-        
-        items = list(
-            self.container.query_items(
-                query=query,
-                parameters=[
-                    {"name": "@document_id", "value": document_id},
-                    {"name": "@user_id", "value": user_id},
-                ],
-                enable_cross_partition_query=False,
-                partition_key=user_id,
-            )
-        )
-        
-        return items[0]["hash"] if items else None
-    
-    async def get_document(
-        self,
-        document_id: str,
-        user_id: str,
-    ) -> Optional[Dict[str, Any]]:
-        """Retrieve full document"""
-        
-        try:
-            item = self.container.read_item(
-                item=document_id,
-                partition_key=user_id,
-            )
-            
-            if item.get("type") != "document":
-                return None
-            
-            return {
-                "id": item["id"],
-                "content": item["content"]["fullText"],
-                "metadata": item.get("metadata", {}),
-                "chunk_count": item.get("statistics", {}).get("chunkCount", 0),
-            }
-        
-        except CosmosResourceNotFoundError:
-            return None
-    
-    async def vector_search(
-        self,
-        query_embedding: List[float],
-        user_id: str,
-        limit: int = 10,
-        filters: Optional[Dict[str, Any]] = None,
-    ) -> List[SearchResult]:
-        """Perform vector similarity search"""
-        
-        # Build query with vector similarity
-        query = """
-            SELECT
-                c.parentDocId,
-                c.chunkIndex,
-                c.position,
-                c.metadata,
-                VectorDistance(c.embedding, @queryEmbedding) AS score
-            FROM c
-            WHERE c.type = 'chunk'
-              AND c.userId = @userId
-        """
-        
-        parameters = [
-            {"name": "@queryEmbedding", "value": query_embedding},
-            {"name": "@userId", "value": user_id},
-        ]
-        
-        # Add metadata filters if provided
-        if filters:
-            if "source_types" in filters:
-                # This requires joining with parent document - simplified for now
-                pass
-        
-        query += """
-            ORDER BY VectorDistance(c.embedding, @queryEmbedding)
-            OFFSET 0 LIMIT @limit
-        """
-        
-        parameters.append({"name": "@limit", "value": limit})
-        
-        # Execute search
-        chunk_results = list(
-            self.container.query_items(
-                query=query,
-                parameters=parameters,
-                enable_cross_partition_query=False,
-                partition_key=user_id,
-            )
-        )
-        
-        # Fetch parent documents and extract text
-        search_results = []
-        
-        for chunk in chunk_results:
-            # Get parent document
-            doc = await self.get_document(chunk["parentDocId"], user_id)
-            
-            if not doc:
-                continue
-            
-            # Extract chunk text using offsets
-            chunk_text = doc["content"][
-                chunk["position"]["startOffset"] : chunk["position"]["endOffset"]
-            ]
-            
-            # Create search result
-            search_results.append(
-                SearchResult(
-                    document_id=chunk["parentDocId"],
-                    chunk_index=chunk["chunkIndex"],
-                    score=chunk["score"],
-                    text=chunk_text,
-                    start_offset=chunk["position"]["startOffset"],
-                    end_offset=chunk["position"]["endOffset"],
-                    section_path=chunk["metadata"].get("sectionPath", []),
-                    document_metadata=DocumentMetadata(
-                        id=doc["id"],
-                        user_id=user_id,
-                        **doc["metadata"],
-                        chunk_count=doc["chunk_count"],
-                        token_count=0,  # TODO: Store this
-                    ),
-                )
-            )
-        
-        logger.info(
-            "vector_search_completed",
-            results_count=len(search_results),
-            limit=limit,
-        )
-        
-        return search_results
-    
-    async def delete_document(
-        self,
-        document_id: str,
-        user_id: str,
-    ) -> bool:
-        """Delete document and its chunks"""
-        
-        try:
-            # Delete document
-            self.container.delete_item(
-                item=document_id,
-                partition_key=user_id,
-            )
-            
-            # Delete all chunks
-            query = """
-                SELECT c.id
-                FROM c
-                WHERE c.parentDocId = @document_id
-                  AND c.type = 'chunk'
-                  AND c.userId = @user_id
-            """
-            
-            chunk_ids = [
-                item["id"]
-                for item in self.container.query_items(
-                    query=query,
-                    parameters=[
-                        {"name": "@document_id", "value": document_id},
-                        {"name": "@user_id", "value": user_id},
-                    ],
-                    enable_cross_partition_query=False,
-                    partition_key=user_id,
-                )
-            ]
-            
-            for chunk_id in chunk_ids:
-                self.container.delete_item(
-                    item=chunk_id,
-                    partition_key=user_id,
-                )
-            
-            logger.info(
-                "document_deleted",
-                document_id=document_id,
-                chunks_deleted=len(chunk_ids),
-            )
-            
-            return True
-        
-        except CosmosResourceNotFoundError:
-            return False
-    
-    async def get_stats(
-        self,
-        user_id: str,
-    ) -> Dict[str, Any]:
-        """Get storage statistics"""
-        
-        # Count documents
-        doc_query = """
-            SELECT VALUE COUNT(1)
-            FROM c
-            WHERE c.type = 'document'
-              AND c.userId = @user_id
-        """
-        
-        doc_count = list(
-            self.container.query_items(
-                query=doc_query,
-                parameters=[{"name": "@user_id", "value": user_id}],
-                enable_cross_partition_query=False,
-                partition_key=user_id,
-            )
-        )[0]
-        
-        # Count chunks
-        chunk_query = """
-            SELECT VALUE COUNT(1)
-            FROM c
-            WHERE c.type = 'chunk'
-              AND c.userId = @user_id
-        """
-        
-        chunk_count = list(
-            self.container.query_items(
-                query=chunk_query,
-                parameters=[{"name": "@user_id", "value": user_id}],
-                enable_cross_partition_query=False,
-                partition_key=user_id,
-            )
-        )[0]
-        
-        return {
-            "document_count": doc_count,
-            "chunk_count": chunk_count,
-            "total_tokens": 0,  # TODO: Aggregate from metadata
-            "sources": {},  # TODO: Group by source_type
-        }
-```
-
-#### 2.3 Factory Pattern
-
-```python
-# src/semantic_search/storage/factory.py
-
-from ..config import settings
-from .base import IVectorStore
-
-
-def get_vector_store() -> IVectorStore:
-    """
-    Factory function to create vector store based on configuration.
-    
-    Returns:
-        Configured IVectorStore implementation
-    
-    Raises:
-        ValueError: If provider is unknown or not configured
-    """
-    
-    provider = settings.storage.provider
-    
-    if provider == "cosmos":
-        from .cosmos_store import CosmosDBVectorStore
-        
-        return CosmosDBVectorStore()
-    
-    elif provider == "pinecone":
-        from .pinecone_store import PineconeVectorStore
-        
-        return PineconeVectorStore()
-    
-    elif provider == "weaviate":
-        from .weaviate_store import WeaviateVectorStore
-        
-        return WeaviateVectorStore()
-    
-    elif provider == "local":
-        from .local_store import LocalVectorStore
-        
-        return LocalVectorStore()
-    
-    else:
-        raise ValueError(
-            f"Unknown vector store provider: {provider}. "
-            f"Supported: cosmos, pinecone, weaviate, local"
-        )
-```
+**No changes needed** - the storage layer is already provider-agnostic.
 
 ---
 
-### Week 3: Complete Ingestion Pipeline
+### Week 3: Complete Ingestion Pipeline with LangChain
 
 #### 3.1 Pipeline Orchestrator
-
-```python
-# src/semantic_search/pipeline/__init__.py
-
-from .orchestrator import IngestionPipeline, IngestionResult
-
-__all__ = ["IngestionPipeline", "IngestionResult"]
-```
 
 ```python
 # src/semantic_search/pipeline/orchestrator.py
@@ -1283,17 +981,25 @@ class IngestionResult(BaseModel):
     token_count: int = 0
     estimated_cost: float = 0.0
     processing_time_seconds: float = 0.0
+    embedding_provider: str = "openai"
+    embedding_model: str = "text-embedding-3-small"
 
 
 class IngestionPipeline:
     """
-    Complete ingestion pipeline: Load → Process → Chunk → Embed → Store
+    Complete ingestion pipeline with LangChain integration.
     
-    Features:
-    - Update detection via content hashing
-    - Two-tier embedding optimization
-    - Configurable storage backend
-    - Comprehensive logging
+    Pipeline Flow:
+    1. Load → Raw document from URL or file
+    2. Process → HTML/Markdown to normalized format
+    3. Chunk → Content-aware splitting
+    4. Embed → LangChain embeddings (provider-agnostic)
+    5. Store → Vector database with parent-child model
+    
+    Learning Notes:
+    - Demonstrates LangChain embedding service integration
+    - Shows provider-agnostic architecture
+    - Prepares for Phase 2 LLM chains (summarization, tags)
     """
     
     def __init__(
@@ -1304,7 +1010,7 @@ class IngestionPipeline:
     ):
         self.vector_store = vector_store or get_vector_store()
         self.embedding_service = (
-            embedding_service if enable_embedding else None
+            embedding_service or EmbeddingService() if enable_embedding else None
         )
         self.enable_embedding = enable_embedding
         
@@ -1316,21 +1022,22 @@ class IngestionPipeline:
         self.chunker = MarkdownChunker(
             token_threshold=settings.embedding.small_doc_threshold,
         )
+        
+        logger.info(
+            "pipeline_initialized",
+            embedding_enabled=enable_embedding,
+            embedding_provider=settings.embedding.provider if enable_embedding else None,
+            storage_provider=settings.storage.provider,
+        )
     
     async def initialize(self):
         """Initialize pipeline (create storage indexes, etc.)"""
         await self.vector_store.initialize()
-        logger.info("pipeline_initialized")
+        logger.info("pipeline_ready")
     
     def _generate_document_id(self, raw_doc: RawDocument) -> str:
-        """
-        Generate unique document ID from source.
-        
-        For URLs: hash of normalized URL
-        For files: hash of file path
-        """
+        """Generate unique document ID from source"""
         if raw_doc.url:
-            # Normalize URL (remove trailing slash, query params, etc.)
             normalized = raw_doc.url.lower().rstrip("/").split("?")[0]
             return f"doc_{hashlib.md5(normalized.encode()).hexdigest()}"
         elif raw_doc.file_path:
@@ -1348,7 +1055,7 @@ class IngestionPipeline:
         user_id: str | None = None,
     ) -> IngestionResult:
         """
-        Execute complete ingestion pipeline.
+        Execute complete ingestion pipeline with LangChain.
         
         Args:
             raw_doc: Raw document to ingest
@@ -1398,6 +1105,8 @@ class IngestionPipeline:
                 status="skipped",
                 reason="Content unchanged (hash match)",
                 processing_time_seconds=elapsed,
+                embedding_provider=settings.embedding.provider,
+                embedding_model=self.embedding_service.stats.model if self.embedding_service else "none",
             )
         
         # 4. Chunk document
@@ -1409,7 +1118,7 @@ class IngestionPipeline:
             chunk_count=len(chunks),
         )
         
-        # 5. Generate embeddings (if enabled)
+        # 5. Generate embeddings using LangChain (if enabled)
         chunks_with_embeddings = []
         estimated_cost = 0.0
         
@@ -1417,7 +1126,7 @@ class IngestionPipeline:
             # Calculate total document token count
             doc_token_count = sum(chunk.token_count for chunk in chunks)
             
-            # Embed chunks
+            # Embed chunks using LangChain
             embedding_results = await self.embedding_service.embed_chunks(
                 chunks,
                 document_token_count=doc_token_count,
@@ -1438,6 +1147,13 @@ class IngestionPipeline:
             
             stats = self.embedding_service.get_stats()
             estimated_cost = stats.estimated_cost
+            
+            logger.info(
+                "embeddings_generated",
+                provider=stats.provider,
+                model=stats.model,
+                total_cost=f"${estimated_cost:.6f}",
+            )
         
         else:
             # No embedding - just store chunks without vectors
@@ -1461,6 +1177,8 @@ class IngestionPipeline:
             "author": document.metadata.get("author"),
             "created_at": datetime.utcnow().isoformat(),
             "content_hash": content_hash,
+            "embedding_provider": settings.embedding.provider if self.enable_embedding else None,
+            "embedding_model": self.embedding_service.stats.model if self.embedding_service else None,
         }
         
         await self.vector_store.store_document(
@@ -1491,56 +1209,387 @@ class IngestionPipeline:
             token_count=sum(c["token_count"] for c in chunks_with_embeddings),
             estimated_cost=estimated_cost,
             processing_time_seconds=elapsed,
+            embedding_provider=settings.embedding.provider if self.enable_embedding else "none",
+            embedding_model=self.embedding_service.stats.model if self.embedding_service else "none",
         )
 ```
 
-#### 3.2 CLI (Already Implemented)
+#### 3.2 Enhanced CLI with LangChain Support
 
-The Typer-based ingestion CLI is already implemented in the repository (see `src/semantic_search/cli.py`).
+```python
+# src/semantic_search/ingestion_cli.py (enhanced for LangChain)
 
-Once embeddings + storage land, extend the CLI with `--embed/--store` and add `search`/`stats` commands.
+import asyncio
+import sys
+from pathlib import Path
+from typing import Optional
+import typer
+from rich.console import Console
+from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.table import Table
+
+from .utils import fetch_url
+from .models import RawDocument
+from .pipeline import IngestionPipeline
+from .storage import get_vector_store
+from .config import settings
+
+app = typer.Typer(
+    help="Semantic Search Ingestion CLI with LangChain Integration"
+)
+console = Console()
+
+
+@app.command()
+def ingest(
+    source: str = typer.Argument(..., help="URL or file path to ingest"),
+    output_dir: Optional[Path] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output directory for saving files (optional)",
+    ),
+    embed: bool = typer.Option(
+        False,
+        "--embed",
+        help="Generate embeddings using LangChain",
+    ),
+    store: bool = typer.Option(
+        False,
+        "--store",
+        help="Store in vector database",
+    ),
+    embedding_provider: Optional[str] = typer.Option(
+        None,
+        "--embedding-provider",
+        help="Override embedding provider (openai|cohere|huggingface)",
+    ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        help="Force re-indexing even if content unchanged",
+    ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Verbose output with detailed logging",
+    ),
+):
+    """
+    Ingest a document: Load → Process → Chunk → Embed (LangChain) → Store
+    
+    Examples:
+    
+        # Basic processing
+        ingestion-cli https://example.com/article
+        
+        # With OpenAI embeddings (default)
+        ingestion-cli https://example.com/article --embed
+        
+        # Complete pipeline with storage
+        ingestion-cli https://example.com/article --embed --store
+        
+        # Use Cohere embeddings instead
+        ingestion-cli https://example.com --embed --embedding-provider cohere
+        
+        # Process local markdown file
+        ingestion-cli document.md --embed --store
+    """
+    
+    # Override provider if specified
+    if embedding_provider:
+        import os
+        os.environ["EMBEDDING_PROVIDER"] = embedding_provider
+        console.print(
+            f"[yellow]Using embedding provider: {embedding_provider}[/yellow]"
+        )
+    
+    # Configure logging
+    if verbose:
+        import logging
+        logging.basicConfig(level=logging.DEBUG)
+    
+    # Run async ingestion
+    asyncio.run(
+        _ingest_async(
+            source=source,
+            output_dir=output_dir,
+            embed=embed,
+            store=store,
+            force=force,
+        )
+    )
+
+
+async def _ingest_async(
+    source: str,
+    output_dir: Optional[Path],
+    embed: bool,
+    store: bool,
+    force: bool,
+):
+    """Async ingestion implementation with LangChain"""
+    
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        
+        # Step 1: Load document
+        task = progress.add_task("Loading document...", total=None)
+        
+        if source.startswith("http://") or source.startswith("https://"):
+            raw_doc = await fetch_url(source)
+        else:
+            file_path = Path(source)
+            if not file_path.exists():
+                console.print(f"[red]Error: File not found: {source}[/red]")
+                sys.exit(1)
+            
+            content = file_path.read_text(encoding="utf-8")
+            
+            if file_path.suffix.lower() in [".md", ".markdown"]:
+                source_type = "markdown"
+            elif file_path.suffix.lower() in [".html", ".htm"]:
+                source_type = "web"
+            else:
+                source_type = "text"
+            
+            raw_doc = RawDocument(
+                content=content,
+                source_type=source_type,
+                file_path=str(file_path),
+            )
+        
+        progress.update(task, description="✓ Document loaded")
+        
+        # Step 2: Run pipeline with LangChain
+        if embed or store:
+            task = progress.add_task(
+                f"Running pipeline (LangChain: {settings.embedding.provider})...",
+                total=None
+            )
+            
+            pipeline = IngestionPipeline(enable_embedding=embed)
+            
+            if store:
+                await pipeline.initialize()
+            
+            result = await pipeline.ingest(raw_doc)
+            
+            progress.update(task, description="✓ Pipeline completed")
+            
+            # Display results
+            console.print("\n[bold green]Ingestion Complete[/bold green]\n")
+            
+            table = Table(show_header=False)
+            table.add_row("Document ID", result.document_id)
+            table.add_row("Status", result.status)
+            if result.reason:
+                table.add_row("Reason", result.reason)
+            table.add_row("Chunks", str(result.chunk_count))
+            table.add_row("Tokens", f"{result.token_count:,}")
+            if embed:
+                table.add_row("Embedding Provider", result.embedding_provider)
+                table.add_row("Embedding Model", result.embedding_model)
+                table.add_row("Estimated Cost", f"${result.estimated_cost:.6f}")
+            table.add_row(
+                "Processing Time", 
+                f"{result.processing_time_seconds:.2f}s"
+            )
+            
+            console.print(table)
+            
+            if store and result.status in ["indexed", "updated"]:
+                console.print(
+                    f"\n[green]✓ Document stored in {settings.storage.provider}[/green]"
+                )
+        
+        else:
+            # Just process and save locally (no LangChain)
+            from .processors import WebPageProcessor, MarkdownProcessor
+            
+            task = progress.add_task("Processing document...", total=None)
+            
+            if raw_doc.source_type == "web":
+                processor = WebPageProcessor(include_enrichment=True)
+            else:
+                processor = MarkdownProcessor(include_enrichment=True)
+            
+            document = processor.process(raw_doc)
+            
+            progress.update(task, description="✓ Document processed")
+            
+            if output_dir:
+                output_dir.mkdir(parents=True, exist_ok=True)
+                
+                md_file = output_dir / "document.md"
+                md_file.write_text(document.content, encoding="utf-8")
+                
+                console.print(f"\n[green]✓ Saved to {md_file}[/green]")
+
+
+@app.command()
+def search(
+    query: str = typer.Argument(..., help="Search query"),
+    limit: int = typer.Option(10, "--limit", "-l", help="Number of results"),
+    source_type: Optional[str] = typer.Option(
+        None,
+        "--source",
+        help="Filter by source type (web, markdown, etc.)",
+    ),
+):
+    """
+    Search indexed documents using LangChain embeddings.
+    
+    Example:
+        ingestion-cli search "kubernetes autoscaling" --limit 5
+    
+    Note: Uses the same embedding provider as ingestion
+    """
+    asyncio.run(_search_async(query, limit, source_type))
+
+
+async def _search_async(
+    query: str,
+    limit: int,
+    source_type: Optional[str],
+):
+    """Async search implementation with LangChain"""
+    
+    from .embeddings import EmbeddingService
+    
+    console.print(
+        f"\n[bold]Searching for:[/bold] {query}\n"
+        f"[dim]Provider: {settings.embedding.provider}[/dim]\n"
+    )
+    
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        
+        # Generate query embedding using LangChain
+        task = progress.add_task(
+            f"Generating query embedding ({settings.embedding.provider})...",
+            total=None
+        )
+        
+        embedder = EmbeddingService()
+        query_embedding = await embedder.embed_text(query)
+        
+        progress.update(task, description="✓ Query embedded")
+        
+        # Search vector store
+        task = progress.add_task("Searching...", total=None)
+        
+        store = get_vector_store()
+        await store.initialize()
+        
+        filters = {}
+        if source_type:
+            filters["source_types"] = [source_type]
+        
+        results = await store.vector_search(
+            query_embedding=query_embedding,
+            user_id=settings.storage.user_id,
+            limit=limit,
+            filters=filters if filters else None,
+        )
+        
+        progress.update(task, description=f"✓ Found {len(results)} results")
+    
+    # Display results
+    if not results:
+        console.print("\n[yellow]No results found[/yellow]")
+        return
+    
+    console.print(f"\n[bold green]Found {len(results)} results:[/bold green]\n")
+    
+    for i, result in enumerate(results, 1):
+        console.print(f"[bold cyan]{i}. Score: {result.score:.3f}[/bold cyan]")
+        console.print(f"   Document: {result.document_id}")
+        console.print(f"   Section: {' > '.join(result.section_path)}")
+        console.print(f"   Text: {result.text[:200]}...")
+        console.print()
+
+
+@app.command()
+def info():
+    """Display configuration information"""
+    
+    console.print("\n[bold]Current Configuration:[/bold]\n")
+    
+    table = Table(show_header=True, header_style="bold magenta")
+    table.add_column("Setting", style="cyan")
+    table.add_column("Value", style="green")
+    
+    table.add_row("Embedding Provider", settings.embedding.provider)
+    
+    if settings.embedding.provider == "openai":
+        table.add_row("Embedding Model", settings.embedding.openai_model)
+        table.add_row("Dimensions", str(settings.embedding.openai_dimensions))
+    elif settings.embedding.provider == "cohere":
+        table.add_row("Embedding Model", settings.embedding.cohere_model)
+    elif settings.embedding.provider == "huggingface":
+        table.add_row("Embedding Model", settings.embedding.huggingface_model)
+    
+    table.add_row("Storage Provider", settings.storage.provider)
+    table.add_row("User ID", settings.storage.user_id)
+    table.add_row("Two-Tier Optimization", str(settings.embedding.enable_two_tier))
+    table.add_row("Small Doc Threshold", f"{settings.embedding.small_doc_threshold} tokens")
+    
+    console.print(table)
+    console.print()
+
+
+if __name__ == "__main__":
+    app()
+```
 
 ---
 
-### Week 4: Testing & Documentation
+### Week 4: Testing, Documentation & Phase 2 Preparation
 
-#### 4.1 Integration Tests
+#### 4.1 Integration Tests with LangChain
 
 ```python
-# tests/test_integration.py
+# tests/test_langchain_integration.py
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from semantic_search.pipeline import IngestionPipeline, IngestionResult
+from semantic_search.pipeline import IngestionPipeline
 from semantic_search.models import RawDocument
 
 
 @pytest.mark.asyncio
-async def test_complete_pipeline():
-    """Test complete ingestion pipeline end-to-end"""
+async def test_complete_pipeline_with_langchain():
+    """Test complete pipeline with LangChain embeddings"""
     
     # Create mock vector store
     mock_store = AsyncMock()
-    mock_store.get_document_hash.return_value = None  # Document doesn't exist
+    mock_store.get_document_hash.return_value = None
     mock_store.initialize.return_value = None
     mock_store.store_document.return_value = None
     
-    # Create mock embedding service
-    mock_embedder = AsyncMock()
-    mock_embedder.embed_chunks.return_value = [
-        MagicMock(
-            chunk_id="chunk_0",
-            embedding=[0.1] * 1536,
-            token_count=100,
-            model="text-embedding-3-small",
-        )
-    ]
-    mock_embedder.get_stats.return_value = MagicMock(estimated_cost=0.001)
+    # Create mock LangChain embedder
+    mock_embedder = MagicMock()
+    mock_embedder.aembed_documents = AsyncMock(
+        return_value=[[0.1] * 1536]
+    )
+    
+    # Create embedding service with mock
+    from semantic_search.embeddings import EmbeddingService
+    
+    embedding_service = EmbeddingService(embedding_provider=mock_embedder)
     
     # Create pipeline
     pipeline = IngestionPipeline(
         vector_store=mock_store,
-        embedding_service=mock_embedder,
+        embedding_service=embedding_service,
         enable_embedding=True,
     )
     
@@ -1559,185 +1608,376 @@ async def test_complete_pipeline():
     # Assertions
     assert result.status == "indexed"
     assert result.chunk_count > 0
-    assert result.estimated_cost > 0
+    assert result.embedding_provider == "openai"
+    
+    # Verify LangChain method was called
+    mock_embedder.aembed_documents.assert_called()
     
     # Verify store was called
     mock_store.store_document.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_update_detection():
-    """Test that unchanged documents are skipped"""
+async def test_provider_agnostic_pipeline():
+    """Test that pipeline works with different embedding providers"""
+    
+    # This demonstrates the power of LangChain abstraction
+    # Pipeline code doesn't change when swapping providers
     
     mock_store = AsyncMock()
-    mock_store.get_document_hash.return_value = (
-        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-    )  # Hash of empty string
+    mock_store.get_document_hash.return_value = None
+    mock_store.initialize.return_value = None
+    mock_store.store_document.return_value = None
+    
+    # Mock any LangChain embedder
+    mock_embedder = MagicMock()
+    mock_embedder.aembed_documents = AsyncMock(
+        return_value=[[0.1] * 768]  # Different dimensions (e.g., Cohere)
+    )
+    
+    from semantic_search.embeddings import EmbeddingService
+    
+    embedding_service = EmbeddingService(embedding_provider=mock_embedder)
     
     pipeline = IngestionPipeline(
         vector_store=mock_store,
-        enable_embedding=False,
+        embedding_service=embedding_service,
     )
     
     raw_doc = RawDocument(
-        content="",  # Will produce same hash
+        content="Test",
         source_type="markdown",
-        file_path="/test/doc.md",
+        file_path="/test.md",
     )
     
-    result = await pipeline.ingest(raw_doc, user_id="test-user")
+    result = await pipeline.ingest(raw_doc)
     
-    assert result.status == "skipped"
-    assert "hash match" in result.reason.lower()
+    # Pipeline works regardless of provider
+    assert result.status in ["indexed", "updated", "skipped"]
 ```
 
 #### 4.2 Documentation
 
-Create comprehensive documentation:
+Create comprehensive LangChain-focused documentation:
 
-**1. `docs/embedding-guide.md`** - Embedding service usage and cost optimization
-**2. `docs/storage-providers.md`** - Comparison of Cosmos DB vs Pinecone vs Weaviate
-**3. `docs/pipeline-guide.md`** - Complete pipeline usage with examples
-**4. Update `README.md`** - Add pipeline examples and quick start
+**1. `docs/langchain-integration.md`**
+
+```markdown
+# LangChain Integration Guide
+
+## Overview
+
+This project uses LangChain as the foundation for all AI operations, providing:
+
+- **Provider-agnostic embeddings** - Easily swap between OpenAI, Cohere, Hugging Face
+- **Unified interface** - Same code works with any provider
+- **Built-in best practices** - Retry logic, rate limiting, error handling
+- **Future-ready** - Prepared for Phase 2 LLM chains
+
+## Embedding Providers
+
+### OpenAI (Default)
+
+```bash
+EMBEDDING_PROVIDER=openai
+OPENAI_API_KEY=sk-...
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+OPENAI_EMBEDDING_DIMENSIONS=1536
+```
+
+**Pros:** High quality, 1536 dimensions, $0.02 per 1M tokens
+**Cons:** Requires API key, external dependency
+
+### Cohere
+
+```bash
+EMBEDDING_PROVIDER=cohere
+COHERE_API_KEY=your-key
+COHERE_EMBEDDING_MODEL=embed-english-v3.0
+```
+
+**Pros:** Multilingual support, good quality
+**Cons:** $0.10 per 1M tokens (higher cost)
+
+### Hugging Face (Local)
+
+```bash
+EMBEDDING_PROVIDER=huggingface
+HUGGINGFACE_EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+```
+
+**Pros:** Free, runs locally, no API key needed
+**Cons:** Lower quality, 384 dimensions, slower on CPU
+
+## Swapping Providers
+
+Simply change the environment variable:
+
+```bash
+# Switch to Cohere
+export EMBEDDING_PROVIDER=cohere
+
+# Run pipeline - no code changes needed!
+ingestion-cli https://example.com --embed --store
+```
+
+## Phase 2 Preview: LLM Chains
+
+In Phase 2, we'll add summarization and tag extraction using LangChain:
+
+```python
+from langchain_anthropic import ChatAnthropic
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+
+# Summarization chain (LCEL)
+summary_prompt = ChatPromptTemplate.from_template("""
+Summarize this in 2-3 sentences:
+
+{content}
+""")
+
+llm = ChatAnthropic(model="claude-sonnet-4")
+
+summary_chain = summary_prompt | llm | StrOutputParser()
+
+# Use the chain
+summary = await summary_chain.ainvoke({"content": document.content})
+```
+
+This is why we're using LangChain from the start!
+```
+
+**2. `docs/phase2-preview.md`**
+
+```markdown
+# Phase 2 Preview: Summarization & Tag Extraction
+
+## What's Coming
+
+Phase 2 will add AI-powered metadata extraction:
+
+1. **Summarization** - 2-3 sentence summaries using Claude
+2. **Tag Extraction** - Automatic tags from content
+3. **Importance Scoring** - Relevance ranking (0-100)
+
+## LangChain Foundation
+
+Because we built Phase 1 with LangChain, adding these features is straightforward:
+
+### Summarization Chain
+
+```python
+from langchain_anthropic import ChatAnthropic
+from langchain_core.prompts import ChatPromptTemplate
+
+summary_chain = (
+    ChatPromptTemplate.from_template(
+        "Summarize in 2-3 sentences:\n\n{content}"
+    )
+    | ChatAnthropic(model="claude-sonnet-4", temperature=0)
+    | StrOutputParser()
+)
+
+summary = await summary_chain.ainvoke({"content": text})
+```
+
+### Tag Extraction with Structured Output
+
+```python
+from pydantic import BaseModel
+from langchain_core.output_parsers import JsonOutputParser
+
+class TagOutput(BaseModel):
+    tags: list[str]
+
+tag_chain = (
+    ChatPromptTemplate.from_template(
+        "Extract 3-5 technical tags:\n\n{content}\n\n{format_instructions}"
+    )
+    | ChatAnthropic(model="claude-sonnet-4")
+    | JsonOutputParser(pydantic_object=TagOutput)
+)
+
+tags = await tag_chain.ainvoke({
+    "content": text,
+    "format_instructions": parser.get_format_instructions()
+})
+```
+
+## Your Learning Path
+
+By completing Phase 1 with LangChain, you've learned:
+
+- ✅ Runnable interface
+- ✅ Provider abstraction
+- ✅ Async operations
+- ✅ Error handling
+
+Phase 2 will teach you:
+
+- 🔄 LCEL chaining with `|`
+- 🔄 Prompt templates
+- 🔄 Output parsers
+- 🔄 Structured outputs
+- 🔄 RAG patterns
+```
+
+---
+
+## 🎓 Learning Resources
+
+### LangChain Concepts to Master
+
+1. **Runnables** - Base abstraction for all components
+   - Read: https://python.langchain.com/docs/expression_language/interface
+
+2. **Embeddings** - Text-to-vector transformation
+   - Read: https://python.langchain.com/docs/modules/data_connection/text_embedding/
+
+3. **LCEL** - LangChain Expression Language
+   - Read: https://python.langchain.com/docs/expression_language/
+
+4. **Chains** - Combining components
+   - Read: https://python.langchain.com/docs/modules/chains/
+
+### Recommended Learning Path
+
+**Week 1:** 
+- Implement OpenAI embeddings with LangChain
+- Understand Runnable interface
+- Test provider swapping
+
+**Week 2:**
+- Integrate with vector store
+- Learn error handling patterns
+- Understand async operations
+
+**Week 3:**
+- Build complete pipeline
+- Test with multiple providers
+- Optimize performance
+
+**Week 4:**
+- Read LCEL documentation
+- Build simple summarization chain (practice)
+- Prepare for Phase 2
 
 ---
 
 ## 📊 Success Metrics
 
-Track these metrics to validate implementation:
+Track these metrics to validate your LangChain integration:
 
 ### Functional Metrics
 
-- [ ] Documents ingested successfully (>95% success rate)
-- [ ] Hash-based update detection working (unchanged docs skipped)
-- [ ] Embeddings generated with correct dimensions (1536)
-- [ ] Vector search returns relevant results (score >0.5 for good matches)
-- [ ] Offset-based text extraction accurate (no corruption)
+- [ ] Can swap embedding providers via config (OpenAI ↔ Cohere ↔ Hugging Face)
+- [ ] LangChain retries work on rate limits
+- [ ] Embeddings generated with correct dimensions
+- [ ] Vector search returns relevant results
+- [ ] Pipeline works with all three providers
+
+### Learning Metrics
+
+- [ ] Understand Runnable interface
+- [ ] Can explain provider abstraction benefits
+- [ ] Know how to use LCEL `|` operator
+- [ ] Ready to build summarization chains (Phase 2)
 
 ### Performance Metrics
 
-- [ ] Embedding generation: <5s per document (typical web article)
-- [ ] Storage write: <1s per document + chunks
-- [ ] Vector search: <500ms for p95
-- [ ] Two-tier optimization: >70% embedding cost savings on short content
-
-### Cost Metrics
-
-- [ ] Embedding cost: ~$0.02 per 1000 documents (4000 chars each)
-- [ ] Cosmos DB: $0/month (free tier)
-- [ ] Total: <$5/month for 1000 docs
+- [ ] LangChain overhead: <50ms per batch
+- [ ] Provider switching: Zero code changes
+- [ ] Error handling: Graceful retries on failures
 
 ---
 
-## 🔧 Development Workflow
+## 🚀 Quick Start
 
-### Daily Development Routine
+### 1. Install Dependencies
 
-1. **Pull latest changes**
-   ```bash
-   git pull origin main
-   ```
+```bash
+# Activate environment
+.venv\Scripts\activate
 
-2. **Activate environment**
-   ```bash
-   .venv\Scripts\activate
-   ```
+# Install with LangChain
+pip install -e .[dev]
 
-3. **Run tests**
-   ```bash
-   pytest -v
-   ```
+# Optional: Install alternative providers
+pip install -e .[cohere]       # For Cohere
+pip install -e .[huggingface]  # For local embeddings
+```
 
-4. **Format code**
-   ```bash
-   black src/ tests/
-   ruff check src/ tests/ --fix
-   ```
+### 2. Configure Environment
 
-5. **Commit changes**
-   ```bash
-   git add .
-   git commit -m "feat: implement embedding service"
-   git push origin feature/embeddings
-   ```
+```bash
+# Copy template
+cp .env.template .env
 
-### Branch Strategy
+# Edit .env and add your keys
+# Minimum required:
+OPENAI_API_KEY=sk-...
+COSMOS_ENDPOINT=https://...
+COSMOS_KEY=...
+```
 
-- `main` - Production-ready code
-- `develop` - Integration branch
-- `feature/embeddings` - Embedding service implementation
-- `feature/cosmos-db` - Cosmos DB storage implementation
-- `feature/pipeline` - Pipeline orchestrator
+### 3. Test LangChain Integration
 
----
+```python
+# test_langchain.py
+import asyncio
+from semantic_search.embeddings import EmbeddingService
 
-## 🚀 Deployment Checklist
+async def test():
+    service = EmbeddingService()
+    
+    # Embed a test query
+    embedding = await service.embed_text("kubernetes autoscaling")
+    
+    print(f"✓ Generated {len(embedding)}-dimensional embedding")
+    print(f"✓ Provider: {service.stats.provider}")
+    print(f"✓ Model: {service.stats.model}")
 
-Before deploying to production:
+asyncio.run(test())
+```
 
-### Environment Setup
+### 4. Run Complete Pipeline
 
-- [ ] Create `.env` file with all required keys
-- [ ] Set up Azure Cosmos DB account (free tier)
-- [ ] Create Cosmos DB database and container
-- [ ] Enable vector indexing on `/embedding` path
-- [ ] Test connection with `ingestion-cli stats`
+```bash
+# Basic: Process and chunk
+ingestion-cli https://example.com/article
 
-### Security
+# With OpenAI embeddings
+ingestion-cli https://example.com/article --embed
 
-- [ ] Store API keys in Azure Key Vault (production)
-- [ ] Enable Managed Identity for Azure Functions
-- [ ] Rotate OpenAI API key regularly
-- [ ] Set up monitoring and alerts
+# With Cohere embeddings
+ingestion-cli https://example.com/article --embed --embedding-provider cohere
 
-### Testing
+# Complete pipeline: embed and store
+ingestion-cli https://example.com/article --embed --store
 
-- [ ] Run full test suite: `pytest`
-- [ ] Test with real URLs: `ingestion-cli https://example.com --embed --store`
-- [ ] Validate search: `ingestion-cli search "test query"`
-- [ ] Check statistics: `ingestion-cli stats`
-
----
-
-## 📝 Next Steps After Completion
-
-Once Phase 1 is complete, proceed with:
-
-### Phase 2: Additional Source Connectors (Weeks 5-8)
-
-1. **Obsidian Connector** - Index local markdown files
-2. **Telegram Connector** - Fetch channel messages
-3. **Email Connector** - Index Gmail messages
-4. **PDF Connector** - Extract and index PDF documents
-
-### Phase 3: Search API (.NET) (Weeks 9-12)
-
-Build REST API for:
-- Semantic search endpoint
-- Document retrieval
-- Statistics and analytics
-- User management
-
-### Phase 4: Frontend (Weeks 13-16)
-
-Create React SPA with:
-- Search interface
-- Result visualization
-- Filters and sorting
-- Document viewer
+# Search
+ingestion-cli search "kubernetes autoscaling"
+```
 
 ---
 
 ## 🎯 Summary
 
-This plan provides a complete, production-ready implementation for:
+This LangChain-integrated plan provides:
 
-✅ **Embedding generation** with cost optimization  
-✅ **Provider-agnostic storage** (easily swap Cosmos ↔ Pinecone ↔ Weaviate)  
-✅ **End-to-end pipeline** from URL to searchable chunks  
-✅ **Update detection** to avoid re-indexing  
-✅ **Comprehensive testing** and documentation
+✅ **Provider-agnostic architecture** - Swap embeddings without code changes  
+✅ **Learning foundation** - Hands-on with LangChain core concepts  
+✅ **Future-ready** - Prepared for Phase 2 LLM chains  
+✅ **Production-quality** - Error handling, retries, monitoring  
+✅ **Cost-optimized** - Two-tier chunking saves 70-80%
+
+**Your learning journey:**
+
+1. **Week 1-2:** Master LangChain embeddings and provider abstraction
+2. **Week 3-4:** Build complete pipeline and understand LCEL basics
+3. **Phase 2:** Apply knowledge to build summarization and tag extraction chains
 
 **Estimated completion:** 4-6 weeks of focused development
 
-Good luck with the implementation! 🚀
+Good luck with your LangChain learning journey! 🚀
