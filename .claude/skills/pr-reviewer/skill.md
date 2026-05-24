@@ -18,15 +18,19 @@ Do not skip steps — each phase informs the next.
 
 **Goal: understand WHY this PR exists before looking at any code.**
 
-1. Read the PR description and any linked issues. Extract:
+1. Run `gh pr view` to fetch the PR description, linked issues, labels, and assignees.
+   Extract:
    - The problem being solved
    - The proposed solution at a high level
    - Explicit constraints or decisions the author called out
 
-2. Run `git log --oneline origin/main..HEAD` to see all commits in this PR.
+2. Run `gh pr checks` to see CI status. If any checks are failing, note them now —
+   a failing build changes the review priority (broken code first, style second).
+
+3. Run `git log --oneline origin/main..HEAD` to see all commits in this PR.
    Commit messages reveal intent and scope; note if any seem out of place.
 
-3. Run `git diff --stat origin/main..HEAD` to get a file-level overview.
+4. Run `git diff --stat origin/main..HEAD` to get a file-level overview.
    Categorize files mentally: core domain change vs. config / tests / docs.
 
 If the PR description is missing or vague, flag this as a **moderate** issue
