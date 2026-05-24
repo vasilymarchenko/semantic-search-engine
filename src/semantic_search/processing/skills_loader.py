@@ -53,7 +53,7 @@ class SkillsLoader:
     async def _read(self, path: str) -> str:
         match self._backend:
             case "local":
-                return self._read_local(path)
+                return await asyncio.to_thread(self._read_local, path)
             case "blob":
                 return await self._read_blob(path)
             case _:

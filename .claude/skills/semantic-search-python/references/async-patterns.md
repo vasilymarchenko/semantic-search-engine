@@ -6,16 +6,17 @@
 
 ## TaskGroup — Structured Concurrency (3.11+)
 
-Replaces `asyncio.gather()`. Errors from any task cancel siblings and are
-re-raised as `ExceptionGroup`. Use for parallel work where all tasks must succeed.
+**Rule: prefer `TaskGroup` over `asyncio.gather()`.** The one exception — `gather()` is acceptable when a `Semaphore` already controls concurrency (see Semaphore section below), because the error-propagation trade-off is acceptable when the call site is a tight, bounded batch. In all other cases use `TaskGroup`.
+
+Errors from any `TaskGroup` task cancel siblings and are re-raised as `ExceptionGroup`. Use for parallel work where all tasks must succeed.
 
 ```python
 import asyncio
 
-# ❌ gather() — errors are easy to lose, cancellation is messy
+# ❌ gather() without Semaphore — errors are easy to lose, cancellation is messy
 results = await asyncio.gather(
     embed(chunk1), embed(chunk2), embed(chunk3),
-    return_exceptions=True,  # now you have to inspect each result
+    return_exceptions=True,  # now you have to inspect each result manually
 )
 
 # ✅ TaskGroup — structured, all-or-nothing
@@ -68,10 +69,12 @@ class EmbeddingPipeline:
             return await self._embedder.embed(chunk.preview)
 
     async def embed_all(self, chunks: list[Chunk]) -> list[list[float]]:
+        # gather() is the stated exception to the TaskGroup-first rule:
+        # Semaphore already bounds concurrency, and the flat batch makes
+        # per-task error inspection acceptable at this call site.
         return await asyncio.gather(
             *(self.embed_chunk(c) for c in chunks)
         )
-        # gather here is fine — Semaphore controls actual concurrency
 ```
 
 ### Semaphore + TaskGroup (full pattern)

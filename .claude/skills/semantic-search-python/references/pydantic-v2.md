@@ -30,13 +30,19 @@ class Document(BaseModel):
         populate_by_name = True
         json_encoders = {datetime: lambda v: v.isoformat()}
 
-# ✅ v2
+# ✅ v2 — frozen (immutable) value object
 class Document(BaseModel):
     model_config = ConfigDict(
-        frozen=True,           # immutable after creation
-        populate_by_name=True, # accept both alias and field name
+        frozen=True,            # immutable after creation; assignments raise ValidationError
+        populate_by_name=True,  # accept both alias and field name
         str_strip_whitespace=True,
-        validate_assignment=True,  # re-validate on attribute set (if not frozen)
+    )
+
+# ✅ v2 — mutable model with re-validation on assignment
+class MutableDocument(BaseModel):
+    model_config = ConfigDict(
+        validate_assignment=True,  # re-validates on every attribute set; incompatible with frozen=True
+        str_strip_whitespace=True,
     )
 ```
 
@@ -48,7 +54,7 @@ class Document(BaseModel):
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
@@ -62,7 +68,9 @@ class RawDocument(BaseModel):
     source_id: str
     content: str                        # raw text / HTML / markdown
     content_type: Literal["html", "markdown", "text", "code"]
-    fetched_at: datetime = Field(default_factory=datetime.utcnow)
+    # datetime.now(UTC) not utcnow(): utcnow() returns naive datetime and is
+    # deprecated in 3.12+; UTC alias available since 3.11
+    fetched_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 

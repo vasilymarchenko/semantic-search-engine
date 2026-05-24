@@ -28,11 +28,6 @@ class ContentExtractor(Protocol):
     async def extract(self, url: str) -> RawContent: ...
 
 
-# ---------------------------------------------------------------------------
-# Sprint 1 — ArticleExtractor
-# ---------------------------------------------------------------------------
-
-
 class ArticleExtractor:
     """
     HTTP fetch → readability → markdown.
@@ -55,11 +50,6 @@ class ArticleExtractor:
             title=doc.title,
             metadata=doc.metadata,
         )
-
-
-# ---------------------------------------------------------------------------
-# Sprint 2 — YouTubeExtractor
-# ---------------------------------------------------------------------------
 
 
 class YouTubeExtractor:
@@ -101,11 +91,6 @@ class YouTubeExtractor:
         raise ValueError(f"Cannot parse video ID from URL: {url!r}")
 
 
-# ---------------------------------------------------------------------------
-# Sprint 2 — PDFExtractor
-# ---------------------------------------------------------------------------
-
-
 class PDFExtractor:
     """Download PDF over HTTP then extract text with pypdf (runs in thread pool)."""
 
@@ -128,10 +113,6 @@ class PDFExtractor:
         text = await asyncio.to_thread(_read_pdf, data)
         return RawContent(text=text)
 
-
-# ---------------------------------------------------------------------------
-# Registry — SourceType → extractor instance
-# ---------------------------------------------------------------------------
 
 _REGISTRY: dict[SourceType, ContentExtractor] = {
     SourceType.ARTICLE: ArticleExtractor(),
