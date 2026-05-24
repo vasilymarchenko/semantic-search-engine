@@ -1,0 +1,47 @@
+{
+  "skill_name": "ai-unit-validator",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Please validate this prompt I wrote for a customer support agent:\n\n---\nYou are a friendly, concise customer support assistant for AcmeCorp.\n\nAlways respond in a warm, conversational tone. Be brief — users don't have time to read long answers.\n\nWhen a user reports a bug:\n1. Acknowledge the issue\n2. Ask for their account ID, email, order number, device type, OS version, browser version, and a screenshot\n3. Ask them to describe the problem in detail — be thorough and comprehensive\n4. Escalate to Tier 2 if needed\n5. Follow up within 24 hours\n\nNever admit fault on behalf of AcmeCorp. Never say 'I don't know'. Respond appropriately to user frustration.\n\nIf the user asks about pricing, provide accurate information. If you're unsure, make your best guess.\n---\n\nWhat issues do you see?",
+      "expected_output": "A structured validation report covering all 7 criteria. Should catch: contradiction between 'be brief' and 'ask for 8 pieces of info + detailed description'; ambiguity in 'respond appropriately to user frustration' and 'make your best guess'; the instruction 'never say I don't know' combined with 'make your best guess' is dangerous; missing error path for when user ignores info requests.",
+      "files": [],
+      "assertions": [
+        "The report identifies the contradiction between 'be concise/brief' and the 8-field intake form plus 'be thorough'",
+        "The report flags 'respond appropriately' as semantically ambiguous and suggests a rewrite",
+        "The report identifies the conflict between 'never say I don't know' and 'make your best guess' as critical",
+        "The report includes a health score between 0 and 100",
+        "The report includes a prioritized fix list with severity labels",
+        "All 7 criteria sections are present in the output"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Audit the pr-reviewer skill at .claude/skills/pr-reviewer/SKILL.md — tell me if it has any structural quality issues.",
+      "expected_output": "A validation report for the pr-reviewer skill covering all 7 criteria. Should note trigger precision (description is project-specific which is appropriate), check for any ambiguity in review instructions, evaluate cognitive load of the 5-phase structure, and give a reasonably high health score since it's a well-structured skill.",
+      "files": [],
+      "assertions": [
+        "The report reads the pr-reviewer SKILL.md file",
+        "The report covers all 7 criteria sections",
+        "The report includes an assessment of trigger precision (Criterion 7)",
+        "The report gives a health score",
+        "The report does not fabricate issues that don't exist in the file"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Check my agent definition for quality issues:\n\n---\nYou are a research agent. When given a topic, search the web, read relevant pages, synthesize findings, and write a report.\n\nIf the topic is technical, go deep. If it's general, keep it broad. Handle edge cases. Be helpful.\n\nFormat: use markdown. Include sources. Length should match complexity.\n\nIf you can't find information, try harder. Never give up.\n---",
+      "expected_output": "A validation report that catches: extreme semantic ambiguity throughout ('go deep', 'keep it broad', 'handle edge cases', 'be helpful', 'try harder', 'length should match complexity'); very high cognitive load for such a short prompt because every decision is underdetermined; missing error paths (what if the topic is harmful? what if web search is unavailable?); no success criteria defined; Criterion 6 and 7 not applicable (no imports, not a skill).",
+      "files": [],
+      "assertions": [
+        "The report flags multiple instances of semantic ambiguity with rewrite suggestions",
+        "The report rates cognitive load as High or Very High",
+        "The report identifies missing error paths (e.g., no handling for unavailable tools or harmful topics)",
+        "The report notes that Criterion 6 (Composition) is N/A since there are no imports",
+        "The report notes that Criterion 7 (Trigger Precision) is N/A since this is not a skill",
+        "The report includes a health score",
+        "The report includes a prioritized fix list"
+      ]
+    }
+  ]
+}
