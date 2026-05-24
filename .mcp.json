@@ -1,0 +1,14 @@
+{
+	"mcpServers": {
+		"obsidian-py": {
+			"command": "C:\\Program Files\\nodejs\\npx.cmd",
+			"args": [
+				"@bitbonsai/mcpvault@latest",
+				"G:\\My Drive\\PythonKnowledgeVault"
+			],
+			"env": {
+				"PATH": "C:\\Program Files\\nodejs;${env:PATH}"
+			}
+		}
+	}
+}

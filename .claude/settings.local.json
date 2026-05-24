@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__obsidian__get_vault_stats",
+      "mcp__obsidian__list_all_tags",
+      "mcp__obsidian-py__list_directory",
+      "mcp__obsidian-py__list_all_tags",
+      "mcp__obsidian-py__write_note",
+      "mcp__obsidian-py__search_notes"
+    ],
+    "additionalDirectories": [
+      "c:\\Work\\Personal\\semantic-search-engine\\.claude"
+    ]
+  }
+}
