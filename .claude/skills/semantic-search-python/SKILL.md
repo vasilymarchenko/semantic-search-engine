@@ -32,7 +32,8 @@ def process(items: list[str]) -> Document | None: ...
 def merge(a: dict[str, int], b: dict[str, int]) -> dict[str, int]: ...
 def coords() -> tuple[float, float]: ...
 
-# Type aliases — use `type` keyword (3.12) or TypeAlias (3.10/3.11)
+# Type aliases — use TypeAlias (3.10/3.11); the `type` keyword is 3.12-only,
+# avoid it: this project targets 3.11+
 from typing import TypeAlias
 ChunkId: TypeAlias = str
 EmbeddingVector: TypeAlias = list[float]
@@ -66,6 +67,8 @@ class ChunkingStrategy(Protocol):
 
 Use `isinstance(obj, SourceConnector)` checks only need `@runtime_checkable`.
 
+> **Protocol vs Registry — how they compose:** Protocol defines the structural interface (what methods a connector must have). Registry handles discovery (which class to instantiate for a given `source_type`). Connectors must satisfy both — inherit from Registry for auto-registration and implement all Protocol methods structurally.
+
 ---
 
 ## 3. Self-Registering Plugin Registry
@@ -87,11 +90,15 @@ class ConnectorRegistry:
         return cls._registry[source_type]
 
 
+# Each concrete connector inherits Registry (for discovery) and satisfies
+# the SourceConnector Protocol structurally (fetch + authenticate required)
 class TelegramConnector(ConnectorRegistry, source_type="telegram"):
     async def fetch(self, source_id: str) -> list[RawDocument]: ...
+    async def authenticate(self) -> bool: ...
 
 class ObsidianConnector(ConnectorRegistry, source_type="obsidian"):
     async def fetch(self, source_id: str) -> list[RawDocument]: ...
+    async def authenticate(self) -> bool: ...
 
 # Usage
 connector_cls = ConnectorRegistry.get("telegram")
@@ -205,9 +212,13 @@ Use structured logging. Never bare `print()` in pipeline code.
 ```python
 import logging
 
-logger = logging.getLogger(__name__)  # module-level, never pass around
+# Module-level: never instantiate inside functions or pass as arguments —
+# getLogger(__name__) returns a cached singleton, so there is no cost
+logger = logging.getLogger(__name__)
 
-# ✅ Use lazy % formatting, not f-strings in log calls
+# ✅ Use lazy % formatting, not f-strings in log calls.
+# % args are only interpolated if the message is actually emitted — f-strings
+# pay the formatting cost even when the log level is filtered out.
 logger.info("Indexed %d chunks from document %s", chunk_count, doc_id)
 logger.debug("Embedding batch size: %d", len(batch))
 logger.exception("Failed to process document %s", doc_id)  # includes traceback
@@ -223,23 +234,30 @@ logger.info(
 
 ## 8. General Conventions
 
-**Immutable value objects** — use `frozen=True` for domain models that shouldn't change after creation (see Pydantic reference).
+### Immutable value objects
+Use `frozen=True` for domain models that shouldn't change after creation (see Pydantic reference).
 
-**`__slots__`** — on hot-path dataclasses (e.g., `Chunk`) to reduce memory for thousands of instances.
+### `__slots__` for Pydantic models
+On hot-path models that have thousands of instances (e.g., `Chunk`), enable slots via `ConfigDict` — **not** via a `__slots__` class attribute, which Pydantic v2 ignores on BaseModel subclasses:
+```python
+class Chunk(BaseModel):
+    model_config = ConfigDict(frozen=True, slots=True)
+    ...
+```
 
-**Dict merge** (3.9+):
+### Dict merge (3.9+)
 ```python
 merged = base_metadata | source_metadata  # new dict
 base_metadata |= overrides                 # in-place
 ```
 
-**Walrus operator** for assignment in conditions:
+### Walrus operator for assignment in conditions
 ```python
 if chunk := chunker.next():
     await pipeline.process(chunk)
 ```
 
-**`match`/`case`** for source type dispatch (3.10+):
+### `match`/`case` for source type dispatch (3.10+)
 ```python
 match document.source_type:
     case "telegram":
@@ -249,3 +267,57 @@ match document.source_type:
     case _:
         raise ValueError(f"Unknown source type: {document.source_type!r}")
 ```
+
+---
+
+## 9. Comment Standards
+
+**Default: no comment.** Well-named identifiers document the *what*. Write a comment only when the *why* is non-obvious to a future reader who knows Python and this domain.
+
+### ✅ Write a comment when it reveals one of these:
+
+**Hidden constraint or invariant the type system cannot express:**
+```python
+# SHA-256, not MD5: collision-free at millions-of-chunks scale; content-addressed dedup depends on it
+return hashlib.sha256(self.text.encode()).hexdigest()
+```
+
+**Deliberate trade-off or surprising choice:**
+```python
+# Semaphore is shared across all coroutines in one pipeline run — intentional.
+# Per-request semaphores would allow bursts that blow the OpenAI RPM limit.
+self._semaphore = asyncio.Semaphore(settings.embedding_concurrency)
+```
+
+**Known limitation deferred to a later milestone (must include why it's deferred and what changes it):**
+```python
+# TODO(Q3-2025): replace external vector search with Cosmos DB integrated index
+# once Azure AI Search dependency is removed from the stack.
+results = await self._vector_search_external(query_vector)
+```
+
+**Workaround for a specific external bug or API quirk:**
+```python
+# Telethon returns flood-wait as FloodWaitError even for non-flood scenarios on first auth.
+# Sleeping 1s and retrying once is enough; escalating to with_retry would over-penalize.
+await asyncio.sleep(1)
+```
+
+### ❌ Never write comments that:
+
+```python
+# Create the settings object         ← states what the code says
+settings = Settings()
+
+# Loop through all documents          ← narrates the loop
+for doc in documents:
+
+# Return the result                   ← noise
+return result
+
+# Added for issue #123 / PR review    ← belongs in the commit message; rots as code evolves
+
+# TODO: fix this later                ← missing why, missing when, not actionable
+```
+
+**Rule for deferred work:** always include (a) why it is deferred, (b) what must be true before it can be done, (c) a rough milestone or ticket if one exists.

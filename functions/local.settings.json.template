@@ -1,0 +1,24 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+
+    "COSMOS_ENDPOINT": "https://<account>.documents.azure.com:443/",
+    "COSMOS_KEY": "<key>",
+    "COSMOS_DATABASE": "semantic-search",
+    "COSMOS_CONTAINER": "items",
+
+    "OPENAI_API_KEY": "<key>",
+    "OPENAI_EMBEDDING_MODEL": "text-embedding-3-small",
+
+    "ANTHROPIC_API_KEY": "<key>",
+    "ROUTER_MODEL": "claude-haiku-4-5-20251001",
+    "PROCESSOR_MODEL": "claude-sonnet-4-6",
+
+    "SKILLS_BACKEND": "local",
+    "SKILLS_LOCAL_PATH": "../skills",
+    "SKILLS_BLOB_CONNECTION": "",
+    "SKILLS_BLOB_CONTAINER": "skills"
+  }
+}
