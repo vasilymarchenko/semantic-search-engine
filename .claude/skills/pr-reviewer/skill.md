@@ -14,91 +14,121 @@ Do not skip steps — each phase informs the next.
 
 ---
 
+## Ground Rules
+
+- **Read before finding.** Never surface findings from memory or assumptions — read the actual diff and files.
+- **Stop on missing context.** If the PR, branch, or description is inaccessible — report what's missing and stop.
+- **Read-only by default.** Do not post comments, approve, or trigger write operations unless explicitly instructed in this session.
+- **Use `gh` CLI and `git` for all GitHub interactions.**
+- **Confidence label on every finding:**
+  - 🔴 Certain — verifiable fact, clear rule violation
+  - 🟡 Likely — strong signal, warrants investigation
+  - ⚪ Opinion — style, preference, or architectural suggestion
+
+---
+
 ## Phase 1 — Context
 
 **Goal: understand WHY this PR exists before looking at any code.**
 
-1. Run `gh pr view` to fetch the PR description, linked issues, labels, and assignees.
-   Extract:
-   - The problem being solved
-   - The proposed solution at a high level
-   - Explicit constraints or decisions the author called out
+```
+gh pr view          # description, linked issues, labels, assignees
+gh pr checks        # CI status — failing build shifts review priority
+git log --oneline origin/main..HEAD   # commit intent and scope coherence
+git diff --stat origin/main..HEAD     # file-level map before diving deeper
+```
 
-2. Run `gh pr checks` to see CI status. If any checks are failing, note them now —
-   a failing build changes the review priority (broken code first, style second).
+**Extract:**
+- The problem being solved
+- The proposed solution at a high level
+- Explicit constraints or decisions the author called out
 
-3. Run `git log --oneline origin/main..HEAD` to see all commits in this PR.
-   Commit messages reveal intent and scope; note if any seem out of place.
+If the PR description is missing or vague, flag this as a **moderate** issue:
+*"PR lacks context — reviewer cannot verify intent against implementation."*
 
-4. Run `git diff --stat origin/main..HEAD` to get a file-level overview.
-   Categorize files mentally: core domain change vs. config / tests / docs.
+If `gh pr checks` shows failing checks, note them immediately. A broken build shifts priority: verify correctness of the broken path first, style and quality second.
 
-If the PR description is missing or vague, flag this as a **moderate** issue
-("PR lacks context — reviewer cannot verify intent against implementation").
-
----
-
-## Phase 2 — Structure Analysis
-
-**Goal: identify what changed and where the weight of the PR is.**
-
-1. List all changed files and classify each:
-   - **Core** — domain models, pipeline stages, connectors, embedding logic
-   - **Infrastructure** — config, Azure Functions, Cosmos queries, deployment
-   - **Tests** — unit, integration, fixtures
-   - **Supporting** — logging, utilities, type aliases, constants
-
-2. Check structural coherence:
-   - Is the PR focused, or does it mix unrelated concerns?
-   - Are test files present for every new or changed core module?
-     (Phase 2 only checks presence — Phase 5 evaluates test quality.)
-   - Is there anything changed that the PR description doesn't mention?
+Note any out-of-place commits from `git log` — they may indicate unintended scope.
 
 ---
 
-## Phase 3 — Core Changes: Business Perspective
+## Phase 2 — Solution Validation
 
 **Goal: verify the implementation actually solves the stated problem.**
 
-If the PR has more than 5 core files, prioritize: read the files that are central to the
-stated problem first (usually the entry point and any new/heavily changed modules). Apply
-the questions below to those files in full; for the remaining files, focus only on question 1.
+### Before reading any file — find the analogous module
 
-Phase 3 and Phase 4 read the same files — you may combine the read passes if it is more
-natural. The phases are separated by perspective, not by when you open the file.
+Find the closest existing module that resembles what the PR adds or changes (e.g., new connector → existing connector; new pipeline stage → existing stage). One read pass — compare structure and key patterns only, not line by line. Note divergences; use PR description and commit messages from Phase 1 to judge intentional improvement vs. unintentional inconsistency. Reference this comparison in findings.
 
-For each core-classified file:
+If no analogous module exists (entirely new capability), skip and note it in the Context Summary.
 
-1. Read the **full resulting file** (not just the diff) to understand the code
-   in its final state. Use the diff only to understand what changed.
+### Reading the changed files
 
-2. Ask:
-   - Does this code solve the problem stated in Phase 1?
-   - Are happy-path and error-path behaviors both handled?
-   - Are edge cases covered (empty input, large input, external service failure)?
-   - Will this behave correctly under the load or scale the project targets?
-   - Does it introduce any observable behavior change beyond the stated scope?
-     (Observable means: changed output, different exceptions raised, altered side effects
-     such as writes to Cosmos or external API calls. Log wording changes and internal
-     restructuring without behavior change do not count.)
+Use `git diff --stat` from Phase 1 to classify changed files:
+- **Core** — domain models, pipeline stages, connectors, embedding logic
+- **Infrastructure** — config, Azure Functions, Cosmos queries, deployment
+- **Tests** — unit, integration, fixtures
+- **Supporting** — logging, utilities, type aliases, constants
+
+Check structural coherence: is the PR focused or does it mix unrelated concerns? Is there anything changed that the PR description doesn't mention?
+
+Read the **full resulting file**, not just the diff. If the PR changes more than 5 core files, start with the entry point and most heavily modified modules; apply all five validation questions below to those. For remaining files, apply only question 1 and flag obvious correctness issues.
+
+Phases 2 and 3 read the same files — you may combine passes if more natural; they are separated by perspective (intent vs. technical quality), not by when you open the file.
+
+### Validate — for each core file
+
+1. Does this code solve the problem stated in Phase 1?
+2. Are **happy path and error path** both handled?
+3. Are edge cases covered — null/empty input, large input, external service failure?
+4. Will this behave correctly under the load or scale the project targets?
+5. Does it introduce **observable behavior change** beyond stated scope?
+   *Observable = changed output, different exceptions raised, altered side effects (Cosmos writes, external API calls). Log wording and internal restructuring without behavior change do not count.*
+
+### Flag
+
+- Contradictions with the PR description
+- Observable behavior changes not mentioned in the PR (scope creep)
+- Missing conditions the PR claims to handle
+- Better alternative approaches — only when the tradeoff is clear and worth raising
 
 ---
 
-## Phase 4 — Core Changes: Technical Perspective
+## Phase 3 — Code Quality
 
-**Goal: verify correctness, patterns, and alignment with project standards.**
+**Review in 3 states:**
 
-Before running the checklist, find the closest analogous existing module in the codebase
-(e.g., if the PR adds a connector, find an existing connector; if it adds a pipeline stage,
-find an existing one). Do one read pass — compare structure and key patterns only, not line-by-line.
-Note where the PR's approach diverges; use the PR description and commit messages from Phase 1
-to judge whether a divergence is intentional improvement or unintentional inconsistency.
-Reference this comparison in findings.
+### A. Before Changes
 
-If no analogous module exists (the PR introduces an entirely new capability), skip this step
-and note that in the Context Summary.
+Focus on the *specific files being changed* — not the analogous module from Phase 2, which you already have context on.
 
-Review against each checklist item. Only report findings — skip items with no issues.
+- Read existing code being modified
+- Understand current patterns and conventions in these files
+- Note current error handling approach
+- Document current behavior (what it does today, before the PR)
+
+### B. The Changes
+
+- What is being added / removed / modified
+- Why these specific changes (from Phase 1 context)
+- Scope and impact
+- Breaking vs. non-breaking
+
+### C. After Changes
+
+- Final code state analysis
+- Verify consistency with codebase conventions
+- Check alignment with existing patterns
+- Validate no regressions
+
+Only report findings from the checklists below — skip items with no issues.
+
+### Consistency with existing codebase
+
+- ❌ Naming deviates from established conventions
+- ❌ Error handling or logging style differs from surrounding patterns
+- ❌ Connector / pipeline / store integration approach diverges without justification
+- ❌ Async patterns inconsistent with existing code
 
 ### Python Standards (see `semantic-search-python` skill for full reference)
 
@@ -127,21 +157,6 @@ Review against each checklist item. Only report findings — skip items with no 
       explaining why it cannot be avoided
 - [ ] **Public API docstrings** — every public function, class, and method added or modified
       has at least a one-line docstring describing what it does (not how)
-
-### Architecture Alignment
-
-- [ ] The change fits the existing layered structure (connector → processor → pipeline → store)
-- [ ] No new abstractions introduced that duplicate existing ones
-- [ ] New public interfaces are Protocol-based and mockable in tests
-- [ ] Dependency direction is clean — lower layers don't import upper layers
-- [ ] **Backwards compatibility** — if the PR changes a public interface (function signature,
-      Pydantic model fields, Protocol method), check whether any existing caller is broken.
-      Search for call sites before flagging as safe.
-- [ ] **Dead code** — check whether the PR's own changes render any existing code unreachable
-      or unused (deleted branch, replaced function, orphaned import).
-- [ ] **New third-party dependencies** — if new packages are imported, verify they are added
-      to requirements files and that the addition is justified (not a stdlib or existing-dep
-      equivalent already available).
 
 ### Security
 
@@ -176,30 +191,122 @@ Review against each checklist item. Only report findings — skip items with no 
 - [ ] **No redundant re-embedding** — deduplication or caching is in place before
       calling the embedding model
 
+### Supporting files — lighter pass
+
+- Config changes: are new fields typed correctly, defaulted safely, documented in `Settings`?
+- Azure Function changes: are bindings correct, are secrets sourced from Key Vault references,
+  not plaintext app settings?
+
+### Testing (pragmatic approach)
+
+**Unit tests — cover:**
+- ✅ Complex business logic, critical algorithms, error handling paths
+- ✅ Edge cases that matter (empty input, boundaries, external service failure)
+- ❌ Avoid: trivial code, simple accessors, framework functionality
+
+**Integration tests — required for:**
+- ✅ Connector implementations against real or stubbed external services
+- ✅ Cosmos read/write paths
+- ✅ Full pipeline stage outputs
+
+**Test quality — check each explicitly:**
+
+- **Behavior vs. execution** — assertions verify *what* the code does, not just that it doesn't throw; `assert result is not None` is not a meaningful test
+- **Mock scope** — mocks applied at the right boundary (external I/O only); mocking internal project code usually tests the wrong thing
+- **Failure paths** — at least one test per public function covers an error case; "public function" means any function or method not prefixed with `_`, including async functions and class methods
+- **Fixture realism** — fixtures resemble real data shapes; fake data with wrong types or missing required fields misses entire categories of bugs
+- **Assertion specificity** — `assert len(results) == 3` is weaker than asserting actual content; flag tests where the assertion could pass for the wrong reason
+
 ---
 
-## Phase 5 — Supporting Changes
+## Phase 4 — Design & Architecture
 
-Apply a lighter pass to infrastructure, utilities, and test files:
+**Goal: verify the change is coherent at a structural level — not just correct line by line. Only report findings — skip sub-sections with no issues.**
 
-- Config changes: are new fields typed correctly, defaulted safely, documented?
-- Deployment / Azure Function changes: are bindings correct, are secrets
-  sourced from Key Vault references, not plaintext app settings?
+For every finding, suggest the improvement and explain the tradeoff — design observations without a concrete alternative are not actionable.
 
-### Test quality — check each of these explicitly
+### Dependency direction
 
-- **Behavior vs. execution** — do assertions verify *what* the code does, or just that
-  it doesn't throw? `assert result is not None` is not a meaningful test.
-- **Mock scope** — are mocks applied at the right boundary (external I/O only)?
-  Mocking internal project code usually means the test is testing the wrong thing.
-- **Failure paths** — is there at least one test per public function that covers an
-  error case (bad input, external service failure, empty result)?
-  "Public function" means any function or method not prefixed with `_`, including
-  async functions and class methods on public classes.
-- **Fixture realism** — do fixtures resemble real data shapes? Fake data with wrong types
-  or missing required fields will miss entire categories of bugs.
-- **Assertion specificity** — `assert len(results) == 3` is weaker than asserting
-  the actual content; flag tests where the assertion could pass for the wrong reason.
+- Must flow inward: `connector → processor → pipeline → store`. Lower layers do not import higher layers.
+- New code depends on abstractions (`Protocol`), not concretions.
+- Lower layer importing a higher layer = always a finding.
+
+### Cohesion & coupling
+
+- Each class/module should have one reason to change. Flag classes mixing concerns (e.g., orchestrating pipeline logic and constructing HTTP requests).
+- High fan-out (one class importing many unrelated dependencies) is a smell.
+- New abstractions should group things that genuinely change together; splitting for the sake of splitting increases coupling without improving cohesion.
+
+### Layer & boundary integrity
+
+- Pipeline stages: thin only — receive input chunk/document, run transform, yield output. No I/O inside a stage.
+- Business logic must not leak into connectors, config parsing, or Azure Function bindings.
+- DTOs and domain models must be separate types; flag any Pydantic model used both as a wire format and in pipeline logic.
+
+### Encapsulation
+
+- Domain objects protect their own state — callers cannot put them into invalid state.
+- Internals not exposed unnecessarily.
+- Prefer frozen dataclasses or Pydantic models with `model_config = ConfigDict(frozen=True)` for value objects.
+- If the PR makes previously encapsulated state public to satisfy a new requirement, question whether that is the right approach.
+
+### SOLID in Python
+
+- **S** — Single responsibility: each new/modified class has one reason to change.
+- **O** — Open/closed: extension via new `Protocol` implementations, not modifying existing logic branches.
+- **L** — Liskov: `Protocol` implementors satisfy the full contract; no silent no-ops or surprise exceptions.
+- **I** — Interface segregation: `Protocol`s are focused; clients not forced to depend on methods they don't use.
+- **D** — Dependency inversion: high-level pipeline code depends on `Protocol` abstractions, not concrete connectors or store implementations.
+
+### Anti-patterns to flag
+
+- **God Object** — one class accumulating unrelated responsibilities
+- **Primitive Obsession** — domain concepts (ChunkId, DocumentUrl) as raw `str`/`int`
+- **Anemic Model** — domain objects are pure data bags; all logic in services
+- **Shotgun Surgery** — PR touches many unrelated files for one conceptual change (missing abstraction)
+- **Service Locator** — resolving dependencies at runtime instead of injecting via constructor or function parameter
+
+### Change impact
+
+- **Backwards compatibility** — if the PR changes a public interface (function signature, Pydantic model fields, Protocol method), search call sites before declaring safe. Breaking without updating all callers = 🔴 Critical.
+- **Dead code** — PR's changes render existing code unreachable or unused? Flag and suggest removal.
+- **New third-party dependencies** — verify added to `pyproject.toml` / `requirements.txt`, justified (no stdlib or existing-dep equivalent), no known vulnerabilities.
+
+---
+
+## Phase 5 — Change Prioritization
+
+**After reading all code, use these tiers to determine finding severity based on where they appear.**
+
+A correctness issue in a 🔴 Critical area is always must-fix. The same type of issue in a ⚪ Low area may be a minor note.
+
+**🔴 Critical** (must fix before merge):
+- Public API surface and Pydantic model schemas (breaking field changes)
+- Security-sensitive code (secrets, input validation)
+- Embedding / LLM call correctness and batching
+- Cosmos write paths
+- Breaking changes to connector `Protocol`
+- Production config
+
+**🟡 High** (should fix — open follow-up if not in this PR):
+- Pipeline stage logic and orchestration
+- Connector implementations
+- Error handling and retry logic
+- Resource usage (runaway RU, unbatched embeddings)
+- Major refactorings touching shared abstractions
+
+**🟢 Medium** (fix opportunistically):
+- Internal utilities and helpers
+- Logging and observability
+- Unit test quality
+- Config field typing and defaults
+
+**⚪ Low** (note only):
+- Docstrings and comments
+- Formatting and minor naming
+- Test fixtures
+
+CI failures from `gh pr checks` override tier — a failing check always surfaces as Critical regardless of file area.
 
 ---
 
@@ -207,58 +314,43 @@ Apply a lighter pass to infrastructure, utilities, and test files:
 
 Present findings in exactly this structure. Omit any tier that has no findings.
 
-**For every finding, regardless of tier, include:**
-1. What the problem is (one sentence).
-2. Why it matters — the specific consequence if left unfixed (broken behavior, resource leak,
-   security risk, maintainability pain, style divergence from the rest of the codebase).
-3. The Python/design concept being violated, named explicitly so the author can learn it
-   (e.g., "this is an N+1 pattern", "this breaks the Protocol contract", "pydantic v1 syntax").
-4. A label: **[violation]** for a clear rule broken, or **[judgment call]** when multiple
-   valid approaches exist and this is a preference — explain the tradeoff briefly.
-   Note: Critical findings are always **[violation]** — if something is a judgment call,
-   it cannot be must-fix, so it belongs in Moderate or Minor.
+**Every Critical and Moderate finding must include all four elements:**
+1. **What** — one sentence describing the problem.
+2. **Why it matters** — specific consequence if unfixed (broken behavior, resource leak, security risk, maintainability pain).
+3. **Concept** — principle violated, named explicitly (e.g., "N+1 pattern", "Pydantic v1 syntax", "broken Protocol contract").
+4. **Label** — `[violation]` for a clear rule broken, `[judgment call]` when multiple valid approaches exist. Critical findings are always `[violation]`.
 
-When a PR has more than 8 findings total, you may use a condensed one-line form for Minor
-findings only: `**[File:line]** [label] — what + why in one sentence.` All Critical and
-Moderate findings must always use the full 4-element format.
+When a PR has more than 8 findings total, Minor findings may use condensed one-line form:
+`**[File:line]** [label] — what + why in one sentence.`
+
+All Critical and Moderate findings always use the full 4-element format.
 
 ---
 
 ### Context Summary
-One short paragraph: what this PR is trying to do and whether the implementation
-matches that intent.
+One short paragraph: what this PR is trying to do and whether the implementation matches that intent. Note if no analogous module was found.
 
 ---
 
 ### Patterns Done Well
-List any notable things the PR got right — specifically named, with a one-line note on
-*why* it's the right approach. This is not flattery; it reinforces patterns worth repeating.
-There is no minimum or maximum count. Omit this section only if there is genuinely nothing notable.
+Notable things the PR got right — specifically named, with a one-line note on *why* it's the right approach. Reinforces patterns worth repeating. Omit only if genuinely nothing notable.
 
 ---
 
 ### Critical
-Issues that must be fixed before merge: security vulnerabilities, data loss risk,
-incorrect logic that breaks the stated functionality, severe resource waste
-(e.g., embedding every document individually instead of batching).
+Issues that must be fixed before merge: security vulnerabilities, data loss risk, incorrect logic that breaks stated functionality, severe resource waste (e.g., embedding every document individually instead of batching), breaking interface changes without verified call sites.
 
-- **[File:line]** [violation] — what, why it matters, concept name
-- ...
+- **[File:line]** [violation] — what · why it matters · concept name
 
 ### Moderate
-Issues that degrade maintainability, introduce technical debt, or violate
-project conventions in ways that will cause pain later. Should be fixed,
-acceptable to defer — the PR author should open a follow-up issue before merging.
+Issues that degrade maintainability, violate project conventions, or introduce technical debt. Should be fixed; acceptable to defer if a follow-up issue is opened before merge.
 
-- **[File:line]** [violation|judgment call] — what, why it matters, concept name
-- ...
+- **[File:line]** [violation|judgment call] — what · why it matters · concept name
 
 ### Minor
-Style, naming, minor convention deviations, missing docstrings on public APIs,
-low-priority improvements. Fix opportunistically.
+Style, naming, minor convention deviations, missing docstrings. Fix opportunistically.
 
-- **[File:line]** [violation|judgment call] — what, why it matters, concept name
-- ...
+- **[File:line]** [violation|judgment call] — what · why it matters · concept name
 
 ---
 
