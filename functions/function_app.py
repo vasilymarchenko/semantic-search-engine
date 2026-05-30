@@ -10,8 +10,16 @@ from __future__ import annotations
 
 import json
 import logging
+import sys
+from pathlib import Path
 
 import azure.functions as func
+
+# Support local `src/` layout when the Function worker interpreter doesn't have
+# the package installed in its site-packages.
+_SRC_PATH = Path(__file__).resolve().parents[1] / "src"
+if _SRC_PATH.exists() and str(_SRC_PATH) not in sys.path:
+    sys.path.insert(0, str(_SRC_PATH))
 
 from semantic_search.config import settings
 from semantic_search.models_v2 import ExternalItem

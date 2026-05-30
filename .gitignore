@@ -58,3 +58,4 @@ Thumbs.db
 test_*.html
 test_*.md
 ingestion_output/
+functions/local.settings.json

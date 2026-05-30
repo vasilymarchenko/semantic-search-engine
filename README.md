@@ -203,6 +203,196 @@ ruff check src/ tests/ --fix
 black src/ tests/
 ```
 
+## Run The Azure Function Locally (Step By Step)
+
+This section is for the `POST /api/inbox/external` endpoint implemented in `functions/function_app.py`.
+
+### 1. Prerequisites
+
+- Python 3.11+
+- Docker Desktop (for the Azurite storage emulator)
+- Azure Functions Core Tools v4 (`func` command)
+- Access to:
+  - Anthropic API key
+  - OpenAI API key
+- Optional for current local MVP:
+  - Cosmos DB credentials (code paths are scaffolded, persistence is still TODO)
+
+Check tools:
+
+```bash
+python --version
+func --version
+```
+
+### 2. Create And Activate Virtual Environment
+
+From repository root:
+
+```bash
+python -m venv .venv
+```
+
+Windows PowerShell:
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+macOS/Linux:
+
+```bash
+source .venv/bin/activate
+```
+
+### 3. Install Dependencies For Function + Trajectory 2
+
+From repository root:
+
+```bash
+python -m pip install -e .[dev]
+python -m pip install -r functions/requirements.txt
+```
+
+PowerShell note: if you install extras directly, quote them to avoid wildcard parsing:
+
+```powershell
+python -m pip install -e '.[trajectory-2]'
+```
+
+### 4. Create Local Function Settings File
+
+Copy the template:
+
+Windows PowerShell:
+
+```powershell
+Copy-Item functions\local.settings.json.template functions\local.settings.json
+```
+
+macOS/Linux:
+
+```bash
+cp functions/local.settings.json.template functions/local.settings.json
+```
+
+Then edit `functions/local.settings.json` and set at least:
+
+- `ANTHROPIC_API_KEY`
+- `OPENAI_API_KEY`
+- `PROCESSOR_MODEL` (default in template is fine)
+- `OPENAI_EMBEDDING_MODEL` (default in template is fine)
+- `SKILLS_BACKEND` = `local`
+- `SKILLS_LOCAL_PATH` = `../skills`
+
+Note: this function app currently reads from `skills/sources/*.md`, so `SKILLS_LOCAL_PATH` must resolve to the repo `skills` folder when running from `functions/`.
+
+### 5. Start The Storage Emulator
+
+The Functions runtime requires Azure Storage access for internal coordination. Locally this is served by Azurite, which runs via Docker Compose. The `AzureWebJobsStorage` value in the settings template is already configured to use it.
+
+From the repository root:
+
+```powershell
+docker compose up -d azurite
+```
+
+Verify it is healthy:
+
+```powershell
+docker compose ps azurite
+```
+
+You should see `healthy` in the status column. Leave it running in the background while the function host is up.
+
+To stop and wipe storage (e.g. between test runs):
+
+```powershell
+docker compose down -v
+```
+
+### 6. Start The Function Host
+
+Run from the `functions/` folder:
+
+```bash
+cd functions
+func start
+```
+
+Optional sanity check before `func start`:
+
+```bash
+python -c "import pydantic, langchain_core; print('deps ok')"
+```
+
+You should see the route:
+
+```text
+POST http://localhost:7071/api/inbox/external
+```
+
+### 7. Send A Test Request
+
+PowerShell example:
+
+```powershell
+$body = @{
+  url = "https://learn.microsoft.com/azure/azure-functions/functions-overview"
+  my_note = "serverless overview"
+} | ConvertTo-Json
+
+Invoke-RestMethod \
+  -Method Post \
+  -Uri "http://localhost:7071/api/inbox/external" \
+  -ContentType "application/json" \
+  -Body $body
+```
+
+curl example:
+
+```bash
+curl -X POST "http://localhost:7071/api/inbox/external" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://learn.microsoft.com/azure/azure-functions/functions-overview","my_note":"serverless overview"}'
+```
+
+Expected success response shape:
+
+```json
+{
+  "status": "indexed",
+  "id": "...",
+  "title": "...",
+  "summary": "..."
+}
+```
+
+### 8. Current MVP Behavior Note
+
+- Dedup and persistence into Cosmos DB are still marked TODO in `functions/function_app.py`.
+- So local run currently validates and executes extraction + processing + embedding, but does not yet upsert into Cosmos DB.
+
+### 9. Troubleshooting
+
+- `Process reporting unhealthy: Unable to access AzureWebJobsStorage`
+  - Azurite is not running. Start it with `docker compose up -d azurite` from the repository root and wait for the `healthy` status before running `func start`.
+- `func: command not found`
+  - Install Azure Functions Core Tools v4 and restart terminal.
+- `ModuleNotFoundError: semantic_search`
+  - Ensure you run from an activated virtual environment and keep `src` import support from `functions/function_app.py`.
+- `ModuleNotFoundError: pydantic` or `ModuleNotFoundError: langchain_core`
+  - Install function dependencies explicitly: `python -m pip install -r functions/requirements.txt`.
+- `func start` uses unexpected Python (for example global 3.13)
+  - Activate `.venv` in the same terminal session before starting the host.
+  - Confirm with `python --version` and `python -c "import sys; print(sys.executable)"`.
+- Skill file not found
+  - Verify `SKILLS_BACKEND=local` and `SKILLS_LOCAL_PATH=../skills` in `functions/local.settings.json`.
+- 422 `extraction_failed`
+  - Test with a simpler publicly accessible article URL first.
+- 422 `processing_failed`
+  - Check Anthropic key/model values and function host logs.
+
 ---
 
 *This is a personal project and learning vehicle — for hands-on experience with LangChain, RAG patterns, Azure serverless, and agentic AI workflows.*
